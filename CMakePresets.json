@@ -1,0 +1,35 @@
+{
+    "version": 8,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 30
+    },
+    "configurePresets": [
+        {
+            "name": "local-debug-build",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_EXTENSIONS": "OFF",
+                "CMAKE_BUILD_TYPE": "Debug",
+                "COMPILE_WARNING_AS_ERROR": "ON",
+                "MY_HEADER_DIR": "${sourceDir}/include",
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/"
+            }
+        },
+        {
+            "name": "local-release-build",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_EXTENSIONS": "OFF",
+                "CMAKE_BUILD_TYPE": "Release",
+                "COMPILE_WARNING_AS_ERROR": "ON",
+                "MY_HEADER_DIR": "${sourceDir}/include",
+                "CMAKE_RUNTIME_OUTPUT_DIRECTORY": "${sourceDir}/build/"
+            }
+        }
+    ]
+}
