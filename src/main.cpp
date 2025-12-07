@@ -9,6 +9,25 @@
 #include "mynet/handles.hpp"
 #include "myapp/msg_task.hpp"
 
+enum class ExitCode {
+    ok = 0,
+    failure = 1,
+};
+
+class MainReturn {
+private:
+    [[maybe_unused]]
+    ExitCode code;
+
+public:
+    constexpr MainReturn(ExitCode e) noexcept
+    : code {e} {}
+
+    operator int(this auto&& self) noexcept {
+        return static_cast<int>(self.code);
+    }
+};
+
 std::atomic_flag is_running {true};
 
 void handle_sigint([[maybe_unused]] int sig_id) {
@@ -61,12 +80,26 @@ auto run_server(std::string_view port_sv, int backlog) -> bool {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        std::println(std::cerr, "usage: ./server <port>");
+    if (argc != 3) {
+        std::println(std::cerr, "usage: ./server <port> <backlog>");
         return 1;
     }
 
     signal(SIGINT, handle_sigint);
 
-    return (run_server(argv[1], 1)) ? 0 : 1;
+    auto checked_backlog = ([](char* argv[]) noexcept -> std::optional<int> {
+        try {
+            return {std::stoi(argv[2])};
+        } catch (const std::invalid_argument& arg_err) {
+            return {};
+        } catch (const std::out_of_range& repr_err) {
+            return {};
+        }
+    })(argv);
+
+    return MainReturn {
+        (run_server(argv[1], checked_backlog.value_or(1)))
+        ? ExitCode::ok
+        : ExitCode::failure
+    };
 }
