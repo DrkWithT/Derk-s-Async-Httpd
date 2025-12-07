@@ -207,12 +207,12 @@ namespace DerkHttpd::Http {
 
     auto HttpIntake::handle_state_request_line(int fd) -> State {
         if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
-            std::println(std::cerr, "Intake ERR[Request-Line-State (1)]: Request Error:\n{}", io_result.error());
+            // std::println(std::cerr, "Intake ERR[Request-Line-State (1)]: Request Error:\n{}", io_result.error());
             return State::httpin_state_syntax_error;
         }
 
         if (auto request_line = parse_request_line({m_buffer.data()}); !request_line.has_value()) {
-            std::println(std::cerr, "Intake ERR[Request-Line-State (2)]: Request Error:\n{}", request_line.error());
+            // std::println(std::cerr, "Intake ERR[Request-Line-State (2)]: Request Error:\n{}", request_line.error());
             return State::httpin_state_syntax_error;
         } else {
             auto [req_path, req_verb, req_schema] = request_line.value();
@@ -227,7 +227,7 @@ namespace DerkHttpd::Http {
 
     auto HttpIntake::handle_state_header(int fd) -> State {
         if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
-            std::println(std::cerr, "Intake ERR [Header-State (1)]: Request Error:\n{}", io_result.error());
+            // std::println(std::cerr, "Intake ERR [Header-State (1)]: Request Error:\n{}", io_result.error());
             return State::httpin_state_syntax_error;
         }
 
@@ -272,7 +272,7 @@ namespace DerkHttpd::Http {
 
         while (pending_body_n > 0) {
             if (auto recv_result = Net::socket_read_n(fd, max_chomp_n, m_buffer); !recv_result.has_value()) {
-                std::println("Intake ERR [Simple-body-State (1)]:\n{}", recv_result.error());
+                // std::println("Intake ERR [Simple-body-State (1)]:\n{}", recv_result.error());
 
                 return State::httpin_state_syntax_error;
             } else if (const auto read_n = recv_result.value(); read_n > 0) {
@@ -297,7 +297,7 @@ namespace DerkHttpd::Http {
 
     // TODO: implement parse for `<HEX-N> CR LF <BLOB-N> CR LF`
     auto HttpIntake::handle_state_chunk([[maybe_unused]] int fd) -> State {
-        ; // TODO: read length line, parse length as hex integer, then read body as size-n blob, and finally consume the CRLF.
+        // TODO: read length line, parse length as hex integer, then read body as size-n blob, and finally consume the CRLF.
         std::println(std::cerr, "Intake ERR [Chunk-State (1)]:\nNot implemented!");
         return State::httpin_state_syntax_error;
     }
@@ -332,11 +332,11 @@ namespace DerkHttpd::Http {
                     m_state = handle_state_chunk(fd);
                     break;
                 case State::httpin_state_syntax_error:
-                    std::println("Intake ERR:\nFound syntax error in request!");
+                    // std::println("Intake ERR:\nFound syntax error in request!");
                     request_malformed = true;
                     break;
                 case State::httpin_state_constraint_error:
-                    std::println("Intake ERR:\nFound semantic error in request!");
+                    // std::println("Intake ERR:\nFound semantic error in request!");
                     request_bad_sema = true;
                     break;
                 default:

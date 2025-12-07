@@ -29,13 +29,15 @@ namespace DerkHttpd::App {
         : m_http_in { Http::IntakeConfig {.max_body_size = 1024} }, m_http_out {} {}
 
         [[nodiscard]] auto operator()(int fd_idx, int fd) -> ResultType {
-            auto req = m_http_in(fd);
+            auto req_result = m_http_in(fd);
 
-            if (!req.has_value()) {
-                std::println(std::cerr, "MsgExchangeTask ERROR:\n{}", req.error());
+            // 1. Check if request decode was OK. Usually, a bad exchange means the connection's invariants are broken- It must be closed.
+            if (!req_result.has_value()) {
+                std::println(std::cerr, "MsgExchangeTask ERROR:\n{}", req_result.error());
                 return {fd_idx, false};
             }
 
+            const auto& req = req_result.value();
             auto res = Http::Response {
                 .body = {},
                 .headers = {},
@@ -44,9 +46,15 @@ namespace DerkHttpd::App {
             };
 
             res.headers.emplace("Server", "derkhttpd/0.0.1");
-            res.headers.emplace("Connection", "close");
 
-            if (auto req_object = req.value(); req_object.uri == "/" && req_object.http_verb == Http::Verb::http_get) {
+            // 2. Try handling persistent connections by the client's wishes and HTTP/1.1 defaults.
+            if (req.headers.contains("Connection") && req.http_schema == Http::Schema::http_1_1) {
+                res.headers.emplace("Connection", req.headers.at("Connection"));
+            } else {
+                res.headers.emplace("Connection", "close");
+            }
+
+            if (req.uri == "/" && req.http_verb == Http::Verb::http_get) {
                 res.body = {'h', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd'};
 
                 res.headers.emplace("Content-Length", "11");

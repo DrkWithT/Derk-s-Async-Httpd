@@ -1,4 +1,3 @@
-#include <algorithm>
 #include <csignal>
 #include <atomic>
 #include <print>
@@ -20,10 +19,7 @@ void handle_sigint([[maybe_unused]] int sig_id) {
 auto run_server(std::string_view port_sv, int backlog) -> bool {
     using namespace DerkHttpd;
 
-    constexpr auto recv_min_backoff_ms = 10;
-    constexpr auto recv_max_backoff_ms = 50;
-    constexpr auto recv_backoff_step = 5;
-    auto backoff_ms = recv_min_backoff_ms;
+    constexpr auto recv_backoff_ms = 20;
 
     Net::CreateServerSocket listener_generator {port_sv, backlog, Net::PollEvent::hangup, Net::PollEvent::received};
 
@@ -54,11 +50,8 @@ auto run_server(std::string_view port_sv, int backlog) -> bool {
             std::println(std::cerr, "Event Loop ERR:\n{}", sweep_res.error());
             break;
         } else if (const auto event_count = sweep_res.value(); event_count == 0) {
-            std::this_thread::sleep_for(std::chrono::milliseconds {backoff_ms});
-            backoff_ms += recv_backoff_step;
-        } else {
-            backoff_ms -= recv_backoff_step;
-            backoff_ms = std::clamp(backoff_ms, recv_min_backoff_ms, recv_max_backoff_ms);
+            // Sleep for inactive I/O periods, saving CPU cycles for other processes.
+            std::this_thread::sleep_for(std::chrono::milliseconds {recv_backoff_ms});
         }
     }
 
