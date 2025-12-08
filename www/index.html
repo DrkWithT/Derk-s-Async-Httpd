@@ -3,28 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test Page</title>
+    <title>Demo</title>
 </head>
 <body>
     <header>
-        <h1>Test Page</h1>
+        <h1>Demo</h1>
     </header>
     <main>
         <div>
-            <h2>Notes</h2>
-            <p>To test the server, enter some text below for echoing back.</p>
-
-            <br>
-
             <h2>Echoed Text</h2>
-            <p>Nothing here!</p>
+            <p><em>Type text to echo!</em></p>
         </div>
         <div>
-            <form>
+            <div id="demo-form">
                 <label for="usertxt">Text to Echo</label>
-                <textarea id="usertxt" name="usertxt" maxlength="240" rows="6" cols="40" placeholder="Enter text here." required></textarea>
-                <input type="button" value="Submit">
-            </form>
+                <input id="usertxt" class="msg-bar" name="usertxt" maxlength="40" placeholder="Enter text here." required/>
+                <input type="button" class="send-btn" value="Submit">
+            </div>
         </div>
     </main>
     <script src="index.js"></script>
