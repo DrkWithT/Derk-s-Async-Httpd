@@ -1,4 +1,5 @@
 ((doc) => {
+    const replyDisplay = doc.querySelector('p#echo-txt')
     const userText = doc.querySelector('#usertxt');
     const submitButton = doc.querySelector('#send-btn');
     submitButton.addEventListener('click', async () => {
@@ -11,7 +12,7 @@
         if (!response) {
             console.error('AJAX Error: failed to get any response.');
         } else if (response.ok) {
-            userText.innerText = await response.text();
+            replyDisplay.innerHTML = await response.text();
         } else {
             console.error(`AJAX Error: found a bad response code of ${response.status}`);
         }
