@@ -1,9 +1,11 @@
 #include <csignal>
 #include <atomic>
 #include <print>
+#include <fstream>
 #include <string_view>
 #include <thread>
 #include <chrono>
+#include <utility>
 
 #include "mynet/make_srvsock.hpp"
 #include "mynet/handles.hpp"
@@ -35,7 +37,27 @@ void handle_sigint([[maybe_unused]] int sig_id) {
     is_running.notify_all();
 }
 
-auto run_server(std::string_view port_sv, int backlog) -> bool {
+[[nodiscard]] auto read_file_as_blob(const std::string& path) -> DerkHttpd::Http::Blob {
+    using namespace DerkHttpd;
+    
+    std::ifstream freader {path};
+
+    if (!freader.is_open()) {
+        return {};
+    }
+
+    Http::Blob contents;
+    std::string temp_line;
+
+    while (std::getline(freader, temp_line)) {
+        contents.append_range(temp_line);
+        contents.emplace_back('\n');
+    }
+
+    return contents;
+}
+
+[[nodiscard]] auto run_server(std::string_view port_sv, int backlog, const DerkHttpd::App::Routes& app_router) -> bool {
     using namespace DerkHttpd;
 
     constexpr auto recv_backoff_ms = 20;
@@ -65,7 +87,7 @@ auto run_server(std::string_view port_sv, int backlog) -> bool {
     Net::Handles fd_pool {listener_pollfd};
 
     while (is_running.test()) {
-        if (auto sweep_res = fd_pool.dispatch_active_fds(io_worker_fn, Net::PollEvent::hangup, Net::PollEvent::received); !sweep_res.has_value()) {
+        if (auto sweep_res = fd_pool.dispatch_active_fds(io_worker_fn, app_router, Net::PollEvent::hangup, Net::PollEvent::received); !sweep_res.has_value()) {
             std::println(std::cerr, "Event Loop ERR:\n{}", sweep_res.error());
             break;
         } else if (const auto event_count = sweep_res.value(); event_count == 0) {
@@ -80,6 +102,8 @@ auto run_server(std::string_view port_sv, int backlog) -> bool {
 }
 
 int main(int argc, char* argv[]) {
+    using namespace DerkHttpd;
+
     if (argc != 3) {
         std::println(std::cerr, "usage: ./server <port> <backlog>");
         return 1;
@@ -97,8 +121,60 @@ int main(int argc, char* argv[]) {
         }
     })(argv);
 
+    App::Routes my_routes;
+
+    my_routes.set_handler("/", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
+        Http::Response res;
+
+        if (req.http_verb != Http::Verb::http_get) {
+            res.headers.emplace("Content-Length", "0");
+            res.headers.emplace("Content-Type", "*/*");
+
+            res.body = {};
+
+            res.http_status = Http::Status::http_method_not_allowed;
+        } else if (auto page_blob = read_file_as_blob("./www/index.html"); !page_blob.empty()) {
+            const auto page_size = page_blob.size();
+
+            res.headers.emplace("Content-Length", std::to_string(page_size));
+            res.headers.emplace("Content-Type", "text/html");
+
+            res.body = std::move(page_blob);
+
+            res.http_status = Http::Status::http_ok;
+        }
+
+        return res;
+    });
+
+    my_routes.set_handler("/index.js", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
+        Http::Response res;
+
+        if (req.http_verb != Http::Verb::http_get) {
+            res.headers.emplace("Content-Length", "0");
+            res.headers.emplace("Content-Type", "*/*");
+
+            res.body = {};
+
+            res.http_status = Http::Status::http_method_not_allowed;
+        } else if (auto page_blob = read_file_as_blob("./www/index.js"); !page_blob.empty()) {
+            const auto page_size = page_blob.size();
+
+            res.headers.emplace("Content-Length", std::to_string(page_size));
+            res.headers.emplace("Content-Type", "text/javascript");
+
+            res.body = std::move(page_blob);
+
+            res.http_status = Http::Status::http_ok;
+        }
+
+        return res;
+    });
+
+    const auto serviced_ok = run_server(argv[1], checked_backlog.value_or(1), my_routes);
+
     return MainReturn {
-        (run_server(argv[1], checked_backlog.value_or(1)))
+        (serviced_ok)
         ? ExitCode::ok
         : ExitCode::failure
     };

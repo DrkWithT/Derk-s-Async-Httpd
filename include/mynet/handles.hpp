@@ -37,8 +37,8 @@ namespace DerkHttpd::Net {
         Handles(Handles&&) = delete;
         Handles& operator=(Handles&&) = delete;
 
-        template <typename Fn, std::same_as<PollEvent> FirstEv, std::same_as<PollEvent> ... Evs> requires (std::is_invocable_r_v<IOTaskResult, Fn, int, int>)
-        [[nodiscard]] auto dispatch_active_fds(Fn& callable, FirstEv first_event_tag, Evs ... event_tags) noexcept -> std::expected<int, std::string> {
+        template <typename Fn, typename Routing, std::same_as<PollEvent> FirstEv, std::same_as<PollEvent> ... Evs> requires (std::is_invocable_r_v<IOTaskResult, Fn, int, int, const Routing&>)
+        [[nodiscard]] auto dispatch_active_fds(Fn& callable, const Routing& routes, FirstEv first_event_tag, Evs ... event_tags) noexcept -> std::expected<int, std::string> {
             const auto poll_n = poll(m_pfds.data(), m_pfds.size(), fallback_timeout);
 
             if (poll_n == poll_error_n) {
@@ -67,7 +67,7 @@ namespace DerkHttpd::Net {
                     }
                 } else {
                     // 2. Handle client socket event
-                    task_statuses.emplace_back(std::async(std::launch::async, callable, fd_index, pfd.fd));
+                    task_statuses.emplace_back(std::async(std::launch::async, callable, fd_index, pfd.fd, routes));
                 }
             }
 
