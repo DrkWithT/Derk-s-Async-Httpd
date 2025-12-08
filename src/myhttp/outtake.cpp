@@ -119,22 +119,16 @@ namespace DerkHttpd::Http {
 
             std::copy_n(blob_data + m_load_count, temp_n, m_reply_bytes.data());
 
-            if (temp_n >= m_reply_bytes.size()) {
-                if (auto io_result = Net::socket_write_n(fd, pending_load_n, m_reply_bytes); !io_result) {
-                    return io_result;
-                }
+            if (auto io_result = Net::socket_write_n(fd, temp_n, m_reply_bytes); !io_result) {
+                return io_result;
+            }
 
+            if (temp_n >= m_reply_bytes.size()) {
                 reset();
             }
 
             m_load_count += temp_n;
             pending_load_n -= temp_n;
-        }
-
-        if (temp_n > 0) {
-            if (auto io_result = Net::socket_write_n(fd, temp_n, m_reply_bytes); !io_result) {
-                return io_result;
-            }
         }
 
         return {static_cast<ssize_t>(m_load_count)};

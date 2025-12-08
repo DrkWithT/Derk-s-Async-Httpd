@@ -50,7 +50,7 @@ namespace DerkHttpd::Uri {
         auto slashes = 0;
 
         while (!at_eos()) {
-            if (const auto c = src_sv[m_pos]; match_alpha(c) || match_digit(c)) {
+            if (const auto c = src_sv[m_pos]; match_alpha(c) || match_digit(c) || c == '.') {
                 ++temp_len;
                 ++m_pos;
             } else if (c == '/') {
@@ -63,7 +63,7 @@ namespace DerkHttpd::Uri {
         }
 
         const auto temp_tag = (slashes < 1)
-            ? TokenTag::wordy 
+            ? TokenTag::wordy
             : TokenTag::path;
 
         return {temp_begin, temp_len, temp_tag};
@@ -99,7 +99,7 @@ namespace DerkHttpd::Uri {
         case '&': return lex_single(TokenTag::query_delim);
         case '%': return lex_encoded_char(src_sv);
         default:
-            if (match_alpha(peeked) || peeked == '/') {
+            if (peeked == '/' || peeked == '.' || match_alpha(peeked)) {
                 return lex_textual(src_sv);
             } else if (match_digit(peeked)) {
                 return lex_int(src_sv);
@@ -135,13 +135,17 @@ namespace DerkHttpd::Uri {
     }
 
     auto Parser::parse_relative_uri(std::string_view uri_src, Lexer& lexer) -> Uri {
-        auto path_opt = parse_path(uri_src, lexer);
+        auto path = parse_path(uri_src, lexer);
+
+        if (!m_current.match_tag_to(TokenTag::query_mark)) {
+            return Uri {std::move(path), {}};
+        }
 
         consume_of<TokenTag::query_mark>(uri_src, lexer);
 
         auto path_params = parse_query(uri_src, lexer);
 
-        return Uri {std::move(path_opt), std::move(path_params)};
+        return Uri {std::move(path), std::move(path_params)};
     }
 
     auto Parser::parse_path(std::string_view uri_src, Lexer& lexer) -> std::string {
@@ -169,6 +173,12 @@ namespace DerkHttpd::Uri {
             auto [item_name, item_value] = parse_query_item(uri_src, lexer);
 
             params.emplace(std::move(item_name), std::move(item_value));
+
+            if (!m_current.match_tag_to(TokenTag::query_delim)) {
+                continue;
+            }
+
+            consume_any(uri_src, lexer);
         }
 
         return params;
@@ -207,6 +217,8 @@ namespace DerkHttpd::Uri {
     : m_result {}, m_current {0, 0, TokenTag::unknown} {}
 
     auto Parser::operator()(std::string_view uri_src, Lexer& lexer) -> std::expected<Uri, std::string> {
+        consume_any(uri_src, lexer);
+
         try {
             return parse_relative_uri(uri_src, lexer);
         } catch (const std::runtime_error& parse_err) {

@@ -57,7 +57,7 @@ namespace DerkHttpd::Http {
         }
 
         const auto deduced_tag = ([this](int token_start, int token_length) -> TokenTag {
-            if (m_verbs.contains(m_src.substr(token_start, token_length))) {
+            if (m_verbs.contains(std::format("{}", m_src.substr(token_start, token_length)))) {
                 return TokenTag::verb;
             } else if (m_schemas.contains(m_src.substr(token_start, token_length))) {
                 return TokenTag::schema;
@@ -215,9 +215,9 @@ namespace DerkHttpd::Http {
             // std::println(std::cerr, "Intake ERR[Request-Line-State (2)]: Request Error:\n{}", request_line.error());
             return State::httpin_state_syntax_error;
         } else {
-            auto [req_path, req_verb, req_schema] = request_line.value();
+            auto& [req_path, req_verb, req_schema] = request_line.value();
 
-            m_temp.uri = req_path;
+            m_temp.uri = std::move(req_path);
             m_temp.http_verb = req_verb;
             m_temp.http_schema = req_schema;
         }
@@ -238,8 +238,7 @@ namespace DerkHttpd::Http {
         }
 
         if (auto request_line = parse_request_header(temp_line); !request_line.has_value()) {
-            std::println(std::cerr, "Intake ERR [Header-State (2.1)]: Request Error:\n{}", request_line.error());
-
+            // std::println(std::cerr, "Intake ERR [Header-State (2.1)]: Request Error:\n{}", request_line.error());
             return State::httpin_state_syntax_error;
         } else if (auto& [key , value] = request_line.value(); !key.empty() && !value.empty()) {
             m_temp.headers[key] = std::move(value);
@@ -263,17 +262,16 @@ namespace DerkHttpd::Http {
     auto HttpIntake::handle_state_simple_body(int fd) -> State {
         Blob temp_body;
 
-        constexpr auto max_chomp_n = 480;
         auto pending_body_n = (m_temp.headers.contains("Content-Length")) ? std::stoi(m_temp.headers.at("Content-Length")) : 0;
 
         if (pending_body_n > m_max_body_size) {
+            // std::println(std::cerr, "Intake ERR: request body too big!");
             return State::httpin_state_constraint_error;
         }
 
         while (pending_body_n > 0) {
-            if (auto recv_result = Net::socket_read_n(fd, max_chomp_n, m_buffer); !recv_result.has_value()) {
-                // std::println("Intake ERR [Simple-body-State (1)]:\n{}", recv_result.error());
-
+            if (auto recv_result = Net::socket_read_n(fd, pending_body_n, m_buffer); !recv_result.has_value()) {
+                // std::println(std::cerr, "Intake ERR [Simple-body-State (1)]:\n{}", recv_result.error());
                 return State::httpin_state_syntax_error;
             } else if (const auto read_n = recv_result.value(); read_n > 0) {
                 for (std::string_view fragment_view = m_buffer.data(); const auto ch : fragment_view) {
@@ -281,10 +279,7 @@ namespace DerkHttpd::Http {
                 }
 
                 pending_body_n -= read_n;
-
-                if (read_n < max_chomp_n) {
-                    break;
-                }
+                std::ranges::fill(m_buffer, '\0');
             } else {
                 break;
             }
@@ -305,6 +300,12 @@ namespace DerkHttpd::Http {
     HttpIntake::HttpIntake(IntakeConfig config) noexcept
     : m_buffer {}, m_lexer {""}, m_verbs {}, m_schemas {}, m_temp {}, m_current {HttpToken { .tag = TokenTag::unknown }}, m_state {State::httpin_state_request_line}, m_max_header_size {480}, m_max_body_size {config.max_body_size} {
         std::ranges::fill(m_buffer, 0);
+
+        m_verbs.emplace("GET", Verb::http_get);
+        m_verbs.emplace("HEAD", Verb::http_head);
+        m_verbs.emplace("POST", Verb::http_post);
+        m_verbs.emplace("PUT", Verb::http_put);
+        m_verbs.emplace("DELETE", Verb::http_delete);
     }
 
     auto HttpIntake::operator()(int fd) -> std::expected<Request, std::string> {
@@ -339,7 +340,9 @@ namespace DerkHttpd::Http {
                     // std::println("Intake ERR:\nFound semantic error in request!");
                     request_bad_sema = true;
                     break;
+                case State::httpin_state_done:
                 default:
+                    // std::println("Intake LOG:\nDONE");
                     request_done = true;
                     break;
             }
