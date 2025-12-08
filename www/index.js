@@ -1,11 +1,11 @@
 ((doc) => {
-    const userText = doc.querySelector('input#usertxt');
-    const submitButton = doc.querySelector('button');
+    const userText = doc.querySelector('#usertxt');
+    const submitButton = doc.querySelector('#send-btn');
     submitButton.addEventListener('click', async () => {
         let response = await fetch('/', {
             method: 'POST',
             headers: {'Content-Type': 'text/plain'},
-            body: `${userText.innerText}`
+            body: `${userText.value}`
         }).catch(err => console.error($`AJAX Error: ${err}`)) || null;
 
         if (!response) {
