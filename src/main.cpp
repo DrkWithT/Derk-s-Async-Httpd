@@ -126,14 +126,7 @@ int main(int argc, char* argv[]) {
     my_routes.set_handler("/", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
-        if (const auto method = req.http_verb; method != Http::Verb::http_get && method != Http::Verb::http_post) {
-            res.headers.emplace("Content-Length", "0");
-            res.headers.emplace("Content-Type", "*/*");
-
-            res.body = {};
-
-            res.http_status = Http::Status::http_method_not_allowed;
-        } else if (method == Http::Verb::http_get) {
+        if (const auto method = req.http_verb; method == Http::Verb::http_get) {
             // GET case:
             auto page_blob = read_file_as_blob("./www/index.html");
 
@@ -142,13 +135,19 @@ int main(int argc, char* argv[]) {
 
             res.body = std::move(page_blob);
             res.http_status = Http::Status::http_ok;
-        } else {
+        } else if (method == Http::Verb::http_post) {
             // POST case:
             res.headers.emplace("Content-Length", std::to_string(req.body.size()));
             res.headers.emplace("Content-Type", "text/plain");
 
             res.body = req.body;
             res.http_status = Http::Status::http_ok;
+        } else {
+            res.headers.emplace("Content-Length", "0");
+            res.headers.emplace("Content-Type", "*/*");
+
+            res.body = {};
+            res.http_status = Http::Status::http_method_not_allowed;
         }
 
         return res;
