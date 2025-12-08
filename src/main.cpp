@@ -126,21 +126,28 @@ int main(int argc, char* argv[]) {
     my_routes.set_handler("/", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
-        if (req.http_verb != Http::Verb::http_get) {
+        if (const auto method = req.http_verb; method != Http::Verb::http_get && method != Http::Verb::http_post) {
             res.headers.emplace("Content-Length", "0");
             res.headers.emplace("Content-Type", "*/*");
 
             res.body = {};
 
             res.http_status = Http::Status::http_method_not_allowed;
-        } else if (auto page_blob = read_file_as_blob("./www/index.html"); !page_blob.empty()) {
-            const auto page_size = page_blob.size();
+        } else if (method == Http::Verb::http_get) {
+            // GET case:
+            auto page_blob = read_file_as_blob("./www/index.html");
 
-            res.headers.emplace("Content-Length", std::to_string(page_size));
+            res.headers.emplace("Content-Length", std::to_string(page_blob.size()));
             res.headers.emplace("Content-Type", "text/html");
 
             res.body = std::move(page_blob);
+            res.http_status = Http::Status::http_ok;
+        } else {
+            // POST case:
+            res.headers.emplace("Content-Length", std::to_string(req.body.size()));
+            res.headers.emplace("Content-Type", "text/plain");
 
+            res.body = req.body;
             res.http_status = Http::Status::http_ok;
         }
 
@@ -166,6 +173,16 @@ int main(int argc, char* argv[]) {
             res.body = std::move(page_blob);
 
             res.http_status = Http::Status::http_ok;
+        } else {
+            Http::Blob file_error_msg;
+            file_error_msg.append_range(std::string {"Failed to read asset."});
+
+            res.headers.emplace("Content-Length", std::to_string(file_error_msg.size()));
+            res.headers.emplace("Content-Type", "text/plain");
+
+            res.body = {};
+
+            res.http_status = Http::Status::http_not_found;
         }
 
         return res;
