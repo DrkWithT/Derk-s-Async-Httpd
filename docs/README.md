@@ -13,6 +13,4 @@ My redux of a toy C++ HTTP/1.x server, but it focuses on event-driven handling: 
 <img src="imgs/My_Async_Httpd_Demo.png" alt="curl does GET root of server" height="50%" width="50%">
 
 ## Roadmap
- - Add simple relative-URI parsing.
- - Add simple route handling.
  - Improve logging: can be disabled and colorized.

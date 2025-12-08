@@ -30,7 +30,7 @@ public:
     }
 };
 
-std::atomic_flag is_running {true};
+std::atomic_flag is_running = ATOMIC_FLAG_INIT;
 
 void handle_sigint([[maybe_unused]] int sig_id) {
     is_running.clear();
@@ -108,6 +108,8 @@ int main(int argc, char* argv[]) {
         std::println(std::cerr, "usage: ./server <port> <backlog>");
         return 1;
     }
+
+    is_running.test_and_set();
 
     signal(SIGINT, handle_sigint);
 
