@@ -16,13 +16,20 @@ namespace DerkHttpd::App {
         }
 
         if (auto handle_error_msg_p = std::get_if<std::string>(&params.at("err_msg")); handle_error_msg_p) {
+            Http::Blob temp_msg_data;
+            temp_msg_data.append_range(*handle_error_msg_p);
+
             const auto msg_length = handle_error_msg_p->length();
 
             res.headers.emplace("Content-Type", "text/plain");
             res.headers.emplace("Content-Length", std::to_string(msg_length));
+
+            res.body = std::move(temp_msg_data);
         } else {
             res.headers.emplace("Content-Type", "*/*");
             res.headers.emplace("Content-Length", "0");
+
+            res.body = {};
         }
 
         return res;
@@ -36,7 +43,7 @@ namespace DerkHttpd::App {
             return false;
         }
 
-        m_handlers.emplace(handler_box);
+        m_handlers.emplace(route_path, handler_box);
 
         return true;
     }
