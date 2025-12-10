@@ -54,7 +54,7 @@ void handle_sigint([[maybe_unused]] int sig_id) {
             }
         }
 
-        return { .fd = -1 };
+        return { .fd = -1, .events = {}, .revents = {} };
     })();
 
     if (listener_pollfd.fd == -1) {

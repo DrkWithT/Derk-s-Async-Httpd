@@ -98,8 +98,8 @@ namespace DerkHttpd::Http {
 
         Net::ByteBuffer<> m_buffer;
         HttpLexer m_lexer;
-        std::unordered_map<std::string, Verb> m_verbs;
-        std::unordered_map<std::string, Schema> m_schemas;
+        std::unordered_map<std::string, Verb, std::hash<std::string>> m_verbs;
+        std::unordered_map<std::string, Schema, std::hash<std::string>> m_schemas;
         Request m_temp;
         HttpToken m_current;
         State m_state;

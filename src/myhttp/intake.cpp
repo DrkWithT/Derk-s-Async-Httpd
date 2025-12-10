@@ -1,5 +1,6 @@
 #include <utility>
 #include <algorithm>
+#include <string>
 
 #include <iostream>
 #include <print>
@@ -7,6 +8,8 @@
 #include "myhttp/intake.hpp"
 
 namespace DerkHttpd::Http {
+    using std::literals::operator""s;
+
     auto HttpLexer::at_eos() const noexcept -> bool {
         return m_pos >= m_end;
     }
@@ -301,11 +304,11 @@ namespace DerkHttpd::Http {
     : m_buffer {}, m_lexer {""}, m_verbs {}, m_schemas {}, m_temp {}, m_current {HttpToken { .tag = TokenTag::unknown }}, m_state {State::httpin_state_request_line}, m_max_header_size {480}, m_max_body_size {config.max_body_size} {
         std::ranges::fill(m_buffer, 0);
 
-        m_verbs.emplace("GET", Verb::http_get);
-        m_verbs.emplace("HEAD", Verb::http_head);
-        m_verbs.emplace("POST", Verb::http_post);
-        m_verbs.emplace("PUT", Verb::http_put);
-        m_verbs.emplace("DELETE", Verb::http_delete);
+        m_verbs.emplace("GET"s, Verb::http_get);
+        m_verbs.emplace("HEAD"s, Verb::http_head);
+        m_verbs.emplace("POST"s, Verb::http_post);
+        m_verbs.emplace("PUT"s, Verb::http_put);
+        m_verbs.emplace("DELETE"s, Verb::http_delete);
     }
 
     auto HttpIntake::operator()(int fd) -> std::expected<Request, std::string> {

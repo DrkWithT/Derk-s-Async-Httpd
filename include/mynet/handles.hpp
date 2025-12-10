@@ -83,7 +83,7 @@ namespace DerkHttpd::Net {
 
             auto evict_count = 0;
 
-            std::ranges::partition(m_pfds, [&, this](const pollfd& item) -> bool {
+            std::ranges::partition(m_pfds, [&](const pollfd& item) -> bool {
                 if (evicting_fds.contains(item.fd)) {
                     ++evict_count;
                     return false;
