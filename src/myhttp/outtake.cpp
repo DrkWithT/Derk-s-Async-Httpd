@@ -116,7 +116,7 @@ namespace DerkHttpd::Http {
         std::size_t pending_load_n = blob.size();
 
         while (pending_load_n > 0) {
-            temp_n = std::min(pending_load_n, m_reply_bytes.size() - m_load_count);
+            temp_n = std::min(pending_load_n, m_reply_bytes.size());
 
             std::copy_n(blob_data + m_load_count, temp_n, m_reply_bytes.data());
 
@@ -151,8 +151,11 @@ namespace DerkHttpd::Http {
                     break;
                 }
 
-                if (auto chunk_hex = std::format("{:x}\r\n", chunk_blob.size()); !serialize(chunk_hex)) {
-                    return std::unexpected {"Failed to set chunk length."};
+                Http::Blob prefix_line;
+                prefix_line.append_range(std::format("{:x}\r\n", chunk_blob.size()));
+
+                if (auto chunk_prefix_res = write_body(fd, prefix_line); !chunk_prefix_res) {
+                    return chunk_prefix_res;
                 }
 
                 if (auto chunk_io_res = write_body(fd, chunk_blob); !chunk_io_res) {
