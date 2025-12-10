@@ -1,14 +1,13 @@
 #include <csignal>
 #include <atomic>
 #include <print>
-#include <fstream>
 #include <string_view>
 #include <thread>
 #include <chrono>
-#include <utility>
 
 #include "mynet/make_srvsock.hpp"
 #include "mynet/handles.hpp"
+#include "myapp/response_helpers.hpp"
 #include "myapp/msg_task.hpp"
 
 enum class ExitCode {
@@ -35,26 +34,6 @@ std::atomic_flag is_running = ATOMIC_FLAG_INIT;
 void handle_sigint([[maybe_unused]] int sig_id) {
     is_running.clear();
     is_running.notify_all();
-}
-
-[[nodiscard]] auto read_file_as_blob(const std::string& path) -> DerkHttpd::Http::Blob {
-    using namespace DerkHttpd;
-    
-    std::ifstream freader {path};
-
-    if (!freader.is_open()) {
-        return {};
-    }
-
-    Http::Blob contents;
-    std::string temp_line;
-
-    while (std::getline(freader, temp_line)) {
-        contents.append_range(temp_line);
-        contents.emplace_back('\n');
-    }
-
-    return contents;
 }
 
 [[nodiscard]] auto run_server(std::string_view port_sv, int backlog, const DerkHttpd::App::Routes& app_router) -> bool {
@@ -129,28 +108,30 @@ int main(int argc, char* argv[]) {
         Http::Response res;
 
         if (const auto method = req.http_verb; method == Http::Verb::http_get) {
-            // GET case:
-            auto page_blob = read_file_as_blob("./www/index.html");
+            if (auto file_opt = App::TextualFile::create("./www/index.html", "text/html", 512); file_opt) {
+                App::ResponseUtils::response_put_all(res, file_opt.value());
 
-            res.headers.emplace("Content-Length", std::to_string(page_blob.size()));
-            res.headers.emplace("Content-Type", "text/html");
-
-            res.body = std::move(page_blob);
-            res.http_status = Http::Status::http_ok;
+                return res;
+            }
         } else if (method == Http::Verb::http_post) {
-            // POST case:
+            // POST case: TODO: add `StringResource`.
             res.headers.emplace("Content-Length", std::to_string(req.body.size()));
             res.headers.emplace("Content-Type", "text/plain");
-
             res.body = req.body;
             res.http_status = Http::Status::http_ok;
-        } else {
-            res.headers.emplace("Content-Length", "0");
-            res.headers.emplace("Content-Type", "*/*");
 
-            res.body = {};
-            res.http_status = Http::Status::http_method_not_allowed;
+            return res;
+        } else {
+            auto invalid_method_err = App::EmptyReply::create(Http::Status::http_method_not_allowed).value();
+
+            App::ResponseUtils::response_put_all(res, invalid_method_err);
+
+            return res;
         }
+
+        auto internal_err = App::EmptyReply::create(Http::Status::http_server_error).value();
+
+        App::ResponseUtils::response_put_all(res, internal_err);
 
         return res;
     });
@@ -158,33 +139,21 @@ int main(int argc, char* argv[]) {
     my_routes.set_handler("/index.js", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
-        if (req.http_verb != Http::Verb::http_get) {
-            res.headers.emplace("Content-Length", "0");
-            res.headers.emplace("Content-Type", "*/*");
+        if (req.http_verb == Http::Verb::http_get) {
+            if (auto file_opt = App::TextualFile::create("./www/index.js", "text/javascript", 512); file_opt) {
+                App::ResponseUtils::response_put_all(res, file_opt.value());
 
-            res.body = {};
-
-            res.http_status = Http::Status::http_method_not_allowed;
-        } else if (auto page_blob = read_file_as_blob("./www/index.js"); !page_blob.empty()) {
-            const auto page_size = page_blob.size();
-
-            res.headers.emplace("Content-Length", std::to_string(page_size));
-            res.headers.emplace("Content-Type", "text/javascript");
-
-            res.body = std::move(page_blob);
-
-            res.http_status = Http::Status::http_ok;
+                return res;
+            }
         } else {
-            Http::Blob file_error_msg;
-            file_error_msg.append_range(std::string {"Failed to read asset."});
+            auto invalid_method_err = App::EmptyReply::create(Http::Status::http_method_not_allowed).value();
 
-            res.headers.emplace("Content-Length", std::to_string(file_error_msg.size()));
-            res.headers.emplace("Content-Type", "text/plain");
-
-            res.body = {};
-
-            res.http_status = Http::Status::http_not_found;
+            App::ResponseUtils::response_put_all(res, invalid_method_err);
         }
+
+        auto internal_err = App::EmptyReply::create(Http::Status::http_server_error).value();
+
+        App::ResponseUtils::response_put_all(res, internal_err);
 
         return res;
     });

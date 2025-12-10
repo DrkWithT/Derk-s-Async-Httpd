@@ -7,7 +7,7 @@ target_include_directories(myhttp PUBLIC ${MY_HEADER_DIR})
 add_library(myuri myuri/uri.cpp myuri/parse.cpp)
 target_include_directories(myuri PUBLIC ${MY_HEADER_DIR})
 
-add_library(myapp myapp/routes.cpp)
+add_library(myapp myapp/contents.cpp myapp/routes.cpp)
 target_include_directories(myapp PUBLIC ${MY_HEADER_DIR})
 
 add_executable(derkhttpd main.cpp)
