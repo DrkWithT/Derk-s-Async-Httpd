@@ -1,6 +1,7 @@
 #ifndef DERK_HTTPD_MYHTTP_MSGS_HPP
 #define DERK_HTTPD_MYHTTP_MSGS_HPP
 
+#include <any>
 #include <cstddef>
 #include <string>
 #include <vector>
@@ -20,7 +21,8 @@ namespace DerkHttpd::Http {
     };
 
     struct Response {
-        Blob body;
+        // For avoiding circular dependency: stores any specific `App::ResourceKind`.
+        std::any body;
         std::map<std::string, std::string> headers;
         Status http_status;
         Schema http_schema;
