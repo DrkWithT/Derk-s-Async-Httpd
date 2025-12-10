@@ -15,14 +15,11 @@ build_status=0
 if [[ $action = "help" ]]; then
     usage_exit 0;
 elif [[ $action = "build" && $argc -ge 2 ]]; then
-    # rm -rf ./.cache;
-    rm -f ./compile_commands.json;
-    rm -f ./build/derkhttpd;
+    rm -rf ./build/;
+    rm -rf ./.cache/;
+    # rm -f ./build/compile_commands.json;
+    # rm -f ./build/derkhttpd;
     cmake --fresh -S . -B build --preset "local-$2-build" && cmake --build build;
-
-    if [[ $? -eq 0 ]]; then
-        mv ./build/compile_commands.json .;
-    fi
 elif [[ $action = "unittest" && $argc -eq 1 ]]; then
     # touch ./logs/all.txt;
     # ctest --test-dir build --timeout 2 -V 1> ./logs/all.txt;
