@@ -3,6 +3,7 @@
 
 #include "mynet/io_funcs.hpp"
 #include "myhttp/msgs.hpp"
+#include "myapp/contents.hpp"
 
 namespace DerkHttpd::Http {
     class HttpOuttake {
@@ -28,6 +29,8 @@ namespace DerkHttpd::Http {
         [[nodiscard]] auto write_batched_headers(int fd, const std::map<std::string, std::string>& headers) -> Net::IOResult<ssize_t>;
 
         [[nodiscard]] auto write_body(int fd, const Blob& blob) -> Net::IOResult<ssize_t>;
+
+        [[nodiscard]] auto write_body(int fd, App::ChunkIterPtr chunking_it) -> Net::IOResult<ssize_t>;
 
     public:
         HttpOuttake() noexcept;

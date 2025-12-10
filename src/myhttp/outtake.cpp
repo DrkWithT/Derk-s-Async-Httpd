@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <format>
 #include <string>
 
 #include "mynet/io_funcs.hpp"
@@ -115,7 +116,7 @@ namespace DerkHttpd::Http {
         std::size_t pending_load_n = blob.size();
 
         while (pending_load_n > 0) {
-            temp_n = std::min(pending_load_n, m_reply_bytes.size());
+            temp_n = std::min(pending_load_n, m_reply_bytes.size() - m_load_count);
 
             std::copy_n(blob_data + m_load_count, temp_n, m_reply_bytes.data());
 
@@ -134,6 +135,37 @@ namespace DerkHttpd::Http {
         return {static_cast<ssize_t>(m_load_count)};
     }
 
+    auto HttpOuttake::write_body(int fd, App::ChunkIterPtr chunking_it) -> Net::IOResult<ssize_t> {
+        reset();
+
+        // NOTE: counts only resource bytes, not including the hex length prefix per chunk!
+        ssize_t total_write_count = 0;
+
+        while (true) {
+            if (auto next_chunk = chunking_it->next(); !next_chunk) {
+                return std::unexpected {"Failed to transmit a file chunk."};
+            } else {
+                auto chunk_blob = next_chunk.value();
+
+                if (chunk_blob.empty()) {
+                    break;
+                }
+
+                if (auto chunk_hex = std::format("{:x}\r\n", chunk_blob.size()); !serialize(chunk_hex)) {
+                    return std::unexpected {"Failed to set chunk length."};
+                }
+
+                if (auto chunk_io_res = write_body(fd, chunk_blob); !chunk_io_res) {
+                    return chunk_io_res;
+                } else {
+                    total_write_count += chunk_io_res.value();
+                }
+            }
+        }
+
+        return {total_write_count};
+    }
+
     HttpOuttake::HttpOuttake() noexcept 
     : m_reply_bytes {}, m_load_count {0} {}
 
@@ -148,7 +180,11 @@ namespace DerkHttpd::Http {
             return false;
         }
 
-        if (auto body_io_res = write_body(fd, res_body); !body_io_res) {
+        if (auto body_io_res = (res.body.type() == typeid(Blob))
+            ? write_body(fd, std::any_cast<Blob>(res.body))
+            : write_body(fd, std::any_cast<App::ChunkIterPtr>(res.body));
+            !body_io_res
+        ) {
             return false;
         }
 
