@@ -38,7 +38,7 @@ namespace DerkHttpd::App {
                 return {fd_idx, false};
             }
 
-            const Http::Request& req = req_result.value();
+            Http::Request req = std::exchange(req_result.value(), {});
             Http::Response res = routes.dispatch_handler(req);
 
             // 2. Decorate response with transfer-specific headers e.g Server, Connection, etc.
