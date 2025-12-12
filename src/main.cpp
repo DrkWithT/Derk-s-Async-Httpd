@@ -104,7 +104,7 @@ int main(int argc, char* argv[]) {
 
     App::Routes my_routes;
 
-    my_routes.set_handler("/", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
+    my_routes.set_handler("/", [](Http::Request req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
         if (const auto method = req.http_verb; method == Http::Verb::http_get) {
@@ -114,29 +114,28 @@ int main(int argc, char* argv[]) {
                 return res;
             }
         } else if (method == Http::Verb::http_post) {
-            // POST case: TODO: add `StringResource`.
-            res.headers.emplace("Content-Length", std::to_string(req.body.size()));
-            res.headers.emplace("Content-Type", "text/plain");
-            res.body = req.body;
+            App::StringReply cat_msg {std::move(req.body), "text/plain"};
+            App::ResponseUtils::response_put_all(res, cat_msg);
+
             res.http_status = Http::Status::http_ok;
 
             return res;
         } else {
-            auto invalid_method_err = App::EmptyReply::create(Http::Status::http_method_not_allowed).value();
+            auto invalid_method_err = App::EmptyReply{Http::Status::http_method_not_allowed};
 
             App::ResponseUtils::response_put_all(res, invalid_method_err);
 
             return res;
         }
 
-        auto internal_err = App::EmptyReply::create(Http::Status::http_server_error).value();
+        auto internal_err = App::EmptyReply {Http::Status::http_server_error};
 
         App::ResponseUtils::response_put_all(res, internal_err);
 
         return res;
     });
 
-    my_routes.set_handler("/index.js", [](const Http::Request& req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
+    my_routes.set_handler("/index.js", [](Http::Request req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
         if (req.http_verb == Http::Verb::http_get) {
@@ -146,12 +145,12 @@ int main(int argc, char* argv[]) {
                 return res;
             }
         } else {
-            auto invalid_method_err = App::EmptyReply::create(Http::Status::http_method_not_allowed).value();
+            auto invalid_method_err = App::EmptyReply {Http::Status::http_method_not_allowed};
 
             App::ResponseUtils::response_put_all(res, invalid_method_err);
         }
 
-        auto internal_err = App::EmptyReply::create(Http::Status::http_server_error).value();
+        auto internal_err = App::EmptyReply {Http::Status::http_server_error};
 
         App::ResponseUtils::response_put_all(res, internal_err);
 
