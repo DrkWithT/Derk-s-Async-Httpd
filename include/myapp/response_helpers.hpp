@@ -17,6 +17,9 @@ namespace DerkHttpd::App {
         {auto(arg.as_full_blob())} -> std::same_as<Http::Blob>;
     };
 
+    // Generates a GMT string for HTTP/1.1 responses: `%a, %e %b %Y %T UTC`, referencing: http://stackoverflow.com/questions/63501664/ddg#63502919
+    [[nodiscard]] auto get_date_string() -> std::string;
+
     // Contains utils for helper functions which add to a response object. All errors are thrown with messages, and these messages are placed into 500 responses.
     namespace ResponseUtils {
         template <ResourceKind Resource>
@@ -29,6 +32,7 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Length", std::to_string(response_size));
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
+            res.headers.emplace("Date", get_date_string());
 
             res.http_status = Http::Status::http_ok;
         }
@@ -39,6 +43,7 @@ namespace DerkHttpd::App {
 
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
+            res.headers.emplace("Date", get_date_string());
 
             if (file_txt_it) {
                 res.body = file_txt_it;
