@@ -27,6 +27,7 @@ namespace DerkHttpd::Net {
         static constexpr auto poll_error_n = -1;
 
         std::vector<pollfd> m_pfds; // pollable BSD socket handles
+
     public:
         /// NOTE: `pollable_fd` will be appended 1st to the fd pool.
         explicit Handles(pollfd pollable_fd);
