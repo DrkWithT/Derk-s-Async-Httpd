@@ -1,3 +1,4 @@
+#include <utility>
 #include <string>
 #include <sstream>
 
@@ -56,10 +57,19 @@ namespace DerkHttpd::App {
     }
 
 
-    EmptyReply::EmptyReply(Http::Status status) noexcept
-    : m_status {status} {}
+    StringReply::StringReply(std::string s, std::string_view mime) noexcept
+    : m_data (std::move(s)), m_mime {mime} {}
 
-    auto EmptyReply::create(Http::Status status) noexcept -> std::optional<EmptyReply> {
-        return EmptyReply {status};
+    StringReply::StringReply(Http::Blob&& b, std::string_view mime)
+    : m_data {}, m_mime {mime} {
+        m_data.append(b.begin(), b.end());
+    }
+
+    auto StringReply::as_full_blob() noexcept -> Http::Blob {
+        Http::Blob blob;
+
+        blob.append_range(m_data);
+
+        return blob;
     }
 }

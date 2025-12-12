@@ -53,14 +53,33 @@ namespace DerkHttpd::App {
         [[nodiscard]] auto as_full_blob() noexcept -> Http::Blob;
     };
 
+    class StringReply {
+    private:
+        std::string m_data;
+        std::string_view m_mime;
+    
+    public:
+        StringReply(std::string s, std::string_view mime) noexcept;
+        StringReply(Http::Blob&& b, std::string_view mime);
+
+        [[nodiscard]] constexpr auto get_mime_desc() const noexcept -> std::string_view {
+            return m_mime;
+        }
+
+        [[nodiscard]] constexpr auto as_chunk_iter() noexcept -> ChunkIterPtr {
+            return nullptr;
+        }
+
+        [[nodiscard]] auto as_full_blob() noexcept -> Http::Blob;
+    };
+
     class EmptyReply {
     private:
         Http::Status m_status;
 
-        EmptyReply(Http::Status status) noexcept;
     public:
-
-        [[nodiscard]] static auto create(Http::Status status) noexcept -> std::optional<EmptyReply>;
+        constexpr EmptyReply(Http::Status status) noexcept
+        : m_status {status} {}
 
         [[nodiscard]] constexpr auto get_mime_desc() const noexcept -> std::string_view {
             return "*/*";
