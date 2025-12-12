@@ -1,7 +1,7 @@
 argc=$#
 
 usage_exit() {
-    echo "Usage: utility.sh [help | build | unittest]\n\tutility.sh build [debug | release]\n\tutility.sh unittest\n";
+    echo "Usage: utility.sh [help | build | unittest]\n\tutility.sh (re)build [debug | release]\n\tutility.sh unittest\n";
     exit $1;
 }
 
@@ -15,10 +15,11 @@ build_status=0
 if [[ $action = "help" ]]; then
     usage_exit 0;
 elif [[ $action = "build" && $argc -ge 2 ]]; then
-    rm -rf ./build/;
-    rm -rf ./.cache/;
-    # rm -f ./build/compile_commands.json;
-    # rm -f ./build/derkhttpd;
+    rm -f ./build/compile_commands.json;
+    rm -f ./build/derkhttpd;
+    cmake -S . -B build --preset "local-$2-build" && cmake --build build;
+elif [[ $action = "rebuild" && $argc -ge 2 ]]; then
+    rm -f ./build/;
     cmake --fresh -S . -B build --preset "local-$2-build" && cmake --build build;
 elif [[ $action = "unittest" && $argc -eq 1 ]]; then
     # touch ./logs/all.txt;
