@@ -19,7 +19,7 @@
         if (!response) {
             console.error('AJAX Error: failed to get any response.');
         } else if (response.ok) {
-            replyDisplay.innerHTML = await response.text();
+            replyDisplay.innerText = await response.text();
         } else {
             console.error(`AJAX Error: found a bad response code of ${response.status}`);
         }
