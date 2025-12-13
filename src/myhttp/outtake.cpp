@@ -137,6 +137,8 @@ namespace DerkHttpd::Http {
     auto HttpOuttake::write_body(int fd, App::ChunkIterPtr chunking_it) -> Net::IOResult<ssize_t> {
         reset();
 
+        Http::Blob http_chunk;
+
         // NOTE: counts only resource bytes, not including the hex length prefix per chunk!
         ssize_t total_write_count = 0;
 
@@ -144,24 +146,27 @@ namespace DerkHttpd::Http {
             if (auto next_chunk = chunking_it->next(); !next_chunk) {
                 return std::unexpected {"Failed to transmit a file chunk."};
             } else {
-                auto chunk_blob = next_chunk.value();
+                const auto& chunk_payload_blob = next_chunk.value();
 
-                Http::Blob prefix_line;
-                prefix_line.append_range(std::format("{:x}\r\n", chunk_blob.size()));
-
-                if (auto chunk_prefix_res = write_body(fd, prefix_line); !chunk_prefix_res) {
-                    return chunk_prefix_res;
+                if (!chunk_payload_blob.empty()) {
+                    http_chunk.append_range(
+                        std::format("{:x}\r\n{}\r\n", chunk_payload_blob.size(), std::string_view {chunk_payload_blob.begin(), chunk_payload_blob.end()})
+                    );
+                } else {
+                    http_chunk.append_range(std::string_view {"0\r\n\r\n"});
                 }
 
-                if (chunk_blob.empty()) {
-                    break;
-                }
-
-                if (auto chunk_io_res = write_body(fd, chunk_blob); !chunk_io_res) {
+                if (auto chunk_io_res = write_body(fd, http_chunk); !chunk_io_res) {
                     return chunk_io_res;
                 } else {
                     total_write_count += chunk_io_res.value();
                 }
+
+                if (chunk_payload_blob.empty()) {
+                    break;
+                }
+
+                http_chunk.clear();
             }
         }
 

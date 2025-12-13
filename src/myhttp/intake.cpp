@@ -2,13 +2,17 @@
 #include <algorithm>
 #include <string>
 
-#include <iostream>
-#include <print>
+// #include <iostream>
+// #include <print>
 
 #include "myhttp/intake.hpp"
 
 namespace DerkHttpd::Http {
     using std::literals::operator""s;
+
+
+    constexpr auto http_chunk_prefix_base = 16;
+    constexpr auto http_chunk_prefix_dud = -1;
 
     auto HttpLexer::at_eos() const noexcept -> bool {
         return m_pos >= m_end;
@@ -94,6 +98,8 @@ namespace DerkHttpd::Http {
         m_end = next_sv.length();
     }
 
+    /// TODO: add URI query parameter lexing... then parse them by this syntax:
+    /// `<identifier> '=' <literal> ('&' <identifier> '=' <literal>)*`
     auto HttpLexer::operator()() -> HttpToken {
         if (at_eos()) {
             return {
@@ -210,7 +216,6 @@ namespace DerkHttpd::Http {
 
     auto HttpIntake::handle_state_request_line(int fd) -> State {
         if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
-            // std::println(std::cerr, "Intake ERR[Request-Line-State (1)]: Request Error:\n{}", io_result.error());
             return State::httpin_state_syntax_error;
         }
 
@@ -230,7 +235,6 @@ namespace DerkHttpd::Http {
 
     auto HttpIntake::handle_state_header(int fd) -> State {
         if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
-            // std::println(std::cerr, "Intake ERR [Header-State (1)]: Request Error:\n{}", io_result.error());
             return State::httpin_state_syntax_error;
         }
 
@@ -293,11 +297,40 @@ namespace DerkHttpd::Http {
         return State::httpin_state_done;
     }
 
-    // TODO: implement parse for `<HEX-N> CR LF <BLOB-N> CR LF`
-    auto HttpIntake::handle_state_chunk([[maybe_unused]] int fd) -> State {
-        // TODO: read length line, parse length as hex integer, then read body as size-n blob, and finally consume the CRLF.
-        std::println(std::cerr, "Intake ERR [Chunk-State (1)]:\nNot implemented!");
-        return State::httpin_state_syntax_error;
+    auto HttpIntake::handle_state_chunk(int fd) -> State {
+        // 1. As per HTTP/1.1, read the chunk prefix line before parsing the hexadecimal integer. The I/O must succeed prior.
+        if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
+            return State::httpin_state_syntax_error;
+        }
+
+        const auto chunk_length = ([](std::string prefix_line) noexcept -> int {
+            try {
+                return std::stoi(prefix_line, nullptr, http_chunk_prefix_base);
+            } catch (const std::invalid_argument& syntax_err) {
+                return http_chunk_prefix_dud;
+            } catch (const std::out_of_range& repr_err) {
+                return http_chunk_prefix_dud;
+            }
+        })({m_buffer.data()});
+
+        // 2. If the prefix length is valid and positive, read another body chunk.
+        if (chunk_length > 0) {
+            if (auto chunk_io_res = Net::socket_read_n(fd, chunk_length, m_buffer); !chunk_io_res) {
+                return State::httpin_state_syntax_error;
+            } else {
+                m_temp.body.append_range(std::string {m_buffer.data()});
+            }
+        } else if (chunk_length < 0) {
+            // 2.1: Check for invalid chunk lengths... This would be unusable, thus requiring a connection termination.
+            return State::httpin_state_syntax_error;
+        }
+
+        // 2.2: Consume & skip trailing CRLF after the chunk(s).
+        if (auto last_crlf_io_res = Net::socket_read_line(fd, m_buffer); !last_crlf_io_res.has_value()) {
+            return State::httpin_state_syntax_error;
+        }
+
+        return (chunk_length == 0) ? State::httpin_state_done : State::httpin_state_chunk ;
     }
 
     HttpIntake::HttpIntake(IntakeConfig config) noexcept
