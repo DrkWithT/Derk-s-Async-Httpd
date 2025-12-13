@@ -109,30 +109,29 @@ namespace DerkHttpd::Http {
     }
 
     auto HttpOuttake::write_body(int fd, const Blob& blob) -> Net::IOResult<ssize_t> {
-        reset();
-
         auto blob_data = blob.data();
-        std::size_t temp_n = 0;
-        std::size_t pending_load_n = blob.size();
+
+        const int output_buffer_size = m_reply_bytes.size();
+        int pending_load_n = blob.size();
+        int temp_n = 0;
+        int done_n = 0;
+
+        std::ranges::fill(m_reply_bytes, '\0');
 
         while (pending_load_n > 0) {
-            temp_n = std::min(pending_load_n, m_reply_bytes.size());
+            temp_n = std::min(pending_load_n, output_buffer_size);
 
-            std::copy_n(blob_data + m_load_count, temp_n, m_reply_bytes.data());
+            std::copy_n(blob_data + done_n, temp_n, m_reply_bytes.data());
 
             if (auto io_result = Net::socket_write_n(fd, temp_n, m_reply_bytes); !io_result) {
                 return io_result;
             }
 
-            if (temp_n >= m_reply_bytes.size()) {
-                reset();
-            }
-
-            m_load_count += temp_n;
+            done_n += temp_n;
             pending_load_n -= temp_n;
         }
 
-        return {static_cast<ssize_t>(m_load_count)};
+        return {static_cast<ssize_t>(done_n)};
     }
 
     auto HttpOuttake::write_body(int fd, App::ChunkIterPtr chunking_it) -> Net::IOResult<ssize_t> {
@@ -147,15 +146,15 @@ namespace DerkHttpd::Http {
             } else {
                 auto chunk_blob = next_chunk.value();
 
-                if (chunk_blob.empty()) {
-                    break;
-                }
-
                 Http::Blob prefix_line;
                 prefix_line.append_range(std::format("{:x}\r\n", chunk_blob.size()));
 
                 if (auto chunk_prefix_res = write_body(fd, prefix_line); !chunk_prefix_res) {
                     return chunk_prefix_res;
+                }
+
+                if (chunk_blob.empty()) {
+                    break;
                 }
 
                 if (auto chunk_io_res = write_body(fd, chunk_blob); !chunk_io_res) {
