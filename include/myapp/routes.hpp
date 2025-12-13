@@ -15,17 +15,20 @@ namespace DerkHttpd::App {
     /// NOTE: Provides an alias for any callable entity that generates a web response given a path and some parameters.
     using Middleware = std::function<Http::Response(Http::Request, const std::map<std::string, Uri::QueryValue>&)>;
 
+    [[nodiscard]] auto compare_host_str(std::string_view incoming, std::string_view host_name, std::string_view host_port) noexcept -> bool;
+
     class Routes {
     private:
         Middleware m_fallback;
         std::map<std::string, Middleware> m_handlers;
-        std::string m_host_str;
+        std::string_view m_host_name;
+        std::string_view m_host_port;
 
         /// NOTE: checks if the request has a valid "Host" (if HTTP/1.1)
         [[nodiscard]] auto check_host_header(const Http::Request& req) const -> bool;
 
     public:
-        explicit Routes(std::string server_host);
+        explicit Routes(std::string_view server_host_name, std::string_view server_host_port);
 
         [[maybe_unused]] auto set_handler(const std::string& route_path, Middleware handler_box) noexcept -> bool;
 

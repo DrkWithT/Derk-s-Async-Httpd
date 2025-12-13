@@ -110,7 +110,13 @@ int main(int argc, char* argv[]) {
         }
     })(argv);
 
-    App::Routes my_routes {std::format("{}:{}", server_hostname, port_arg)};
+    if (!checked_backlog) {
+        std::println("Setup ERR: invalid backlog count!");
+        return 1;
+    }
+
+    const auto backlog_value = checked_backlog.value();
+    App::Routes my_routes {server_hostname, port_arg};
 
     my_routes.set_handler("/", [](Http::Request req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
@@ -163,7 +169,7 @@ int main(int argc, char* argv[]) {
         return res;
     });
 
-    const auto serviced_ok = run_server(port_arg, checked_backlog.value_or(1), my_routes);
+    const auto serviced_ok = run_server(port_arg, backlog_value, my_routes);
 
     return MainReturn {
         (serviced_ok)
