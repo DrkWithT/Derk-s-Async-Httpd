@@ -57,15 +57,17 @@ namespace DerkHttpd::App {
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
             res.headers.emplace("Date", get_date_string());
+            res.headers.emplace("Transfer-Encoding", "chunked");
 
             if (file_txt_it) {
                 res.body = file_txt_it;
-                res.headers.emplace("Transfer-Encoding", "chunked");
 
                 res.http_status = Http::Status::http_ok;
             } else {
-                res.body = {};
-                res.headers.emplace("Content-Length", "0");
+                Http::Blob dud_chunked_data;
+                dud_chunked_data.append_range(std::string_view {"0\r\n\r\n"});
+
+                res.body = std::move(dud_chunked_data);
 
                 res.http_status = Http::Status::http_server_error;
             }

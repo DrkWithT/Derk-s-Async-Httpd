@@ -23,11 +23,11 @@ namespace DerkHttpd::App {
 
     class TextIterator : public ChunkIterBase {
     private:
-        std::ifstream* m_ifstream_p;
+        std::ifstream m_ifstream_p;
         std::size_t m_chunk_len;
 
     public:
-        TextIterator(std::ifstream* fs_p, std::size_t chunk_len) noexcept;
+        TextIterator(std::ifstream fs_p, std::size_t chunk_len) noexcept;
 
         [[nodiscard]] auto next() -> std::optional<Http::Blob> override;
     };
