@@ -1,5 +1,6 @@
 #include <csignal>
 #include <atomic>
+#include <format>
 #include <print>
 #include <string_view>
 #include <thread>
@@ -9,6 +10,7 @@
 #include "mynet/handles.hpp"
 #include "myapp/response_helpers.hpp"
 #include "myapp/msg_task.hpp"
+
 
 enum class ExitCode {
     ok = 0,
@@ -35,6 +37,10 @@ void handle_sigint([[maybe_unused]] int sig_id) {
     is_running.clear();
     is_running.notify_all();
 }
+
+
+constexpr std::string_view server_hostname {"localhost"};
+
 
 [[nodiscard]] auto run_server(std::string_view port_sv, int backlog, const DerkHttpd::App::Routes& app_router) -> bool {
     using namespace DerkHttpd;
@@ -80,6 +86,7 @@ void handle_sigint([[maybe_unused]] int sig_id) {
     return true;
 }
 
+
 int main(int argc, char* argv[]) {
     using namespace DerkHttpd;
 
@@ -92,6 +99,7 @@ int main(int argc, char* argv[]) {
 
     signal(SIGINT, handle_sigint);
 
+    std::string_view port_arg {argv[1]};
     auto checked_backlog = ([](char* argv[]) noexcept -> std::optional<int> {
         try {
             return {std::stoi(argv[2])};
@@ -102,22 +110,20 @@ int main(int argc, char* argv[]) {
         }
     })(argv);
 
-    App::Routes my_routes;
+    App::Routes my_routes {std::format("{}:{}", server_hostname, port_arg)};
 
     my_routes.set_handler("/", [](Http::Request req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
         Http::Response res;
 
         if (const auto method = req.http_verb; method == Http::Verb::http_get) {
             if (auto file_opt = App::TextualFile::create("./www/index.html", "text/html", 512); file_opt) {
-                App::ResponseUtils::response_put_all(res, file_opt.value());
+                App::ResponseUtils::response_put_all(res, file_opt.value(), Http::Status::http_ok);
 
                 return res;
             }
         } else if (method == Http::Verb::http_post) {
             App::StringReply cat_msg {std::move(req.body), "text/plain"};
-            App::ResponseUtils::response_put_all(res, cat_msg);
-
-            res.http_status = Http::Status::http_ok;
+            App::ResponseUtils::response_put_all(res, cat_msg, Http::Status::http_ok);
 
             return res;
         } else {
@@ -140,7 +146,7 @@ int main(int argc, char* argv[]) {
 
         if (req.http_verb == Http::Verb::http_get) {
             if (auto file_opt = App::TextualFile::create("./www/index.js", "text/javascript", 512); file_opt) {
-                App::ResponseUtils::response_put_all(res, file_opt.value());
+                App::ResponseUtils::response_put_all(res, file_opt.value(), Http::Status::http_ok);
 
                 return res;
             }
@@ -157,7 +163,7 @@ int main(int argc, char* argv[]) {
         return res;
     });
 
-    const auto serviced_ok = run_server(argv[1], checked_backlog.value_or(1), my_routes);
+    const auto serviced_ok = run_server(port_arg, checked_backlog.value_or(1), my_routes);
 
     return MainReturn {
         (serviced_ok)
