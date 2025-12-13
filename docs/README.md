@@ -10,7 +10,7 @@ My redux of a toy C++ HTTP/1.x server, but it focuses on event-driven handling: 
     - Crash course of HTTP/1.x basics
 
 ## Basic Demonstration
-<img src="imgs/My_Async_Httpd_Demo.png" alt="curl does GET root of server" height="50%" width="50%">
+<img src="imgs/Derk_Httpd_New_Page.png" alt="test page with text echoing" height="50%" width="50%">
 
 ## Roadmap
  - Test GET query param handling.
