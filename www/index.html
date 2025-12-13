@@ -4,23 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Demo</title>
+    <style>
+        html {
+            left: 0;
+            top: 0;
+            display: block;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14pt;
+        }
+
+        body {
+            display: block;
+            margin: 0;
+            padding: 0 15%;
+            background-color: beige;
+            color: cadetblue;
+        }
+
+        header {
+            display: block;
+            left: 0;
+            top: 0;
+            margin: 0;
+            padding: 10px;
+            background-color: rgb(0, 120, 180);
+            color: whitesmoke;
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            color: inherit;
+        }
+
+        #demo-form {
+            text-align: center;
+            align-items: center;
+            display: block;
+            background-color: rgb(0, 120, 180);
+            color: whitesmoke;
+            padding: 10px;
+        }
+
+        label {
+            font-weight: bold;
+            color: inherit;
+        }
+
+        textarea {
+            border: 2px solid lightgray;
+            outline: none;
+        }
+
+        textarea:invalid {
+            border-style: dotted;
+            border-color: orange;
+        }
+
+        .page-btn {
+            display: inline-block;
+            border: none;
+            border-radius: 5%;
+            padding: 5px;
+            background-color: goldenrod;
+            color: white;
+        }
+
+        .page-btn:hover {
+            background-color: rgb(230, 200, 110);
+            color: gray;
+        }
+    </style>
 </head>
 <body>
-    <header>
-        <h1>Demo</h1>
-    </header>
+    <header><h1>Demo</h1></header>
     <main>
-        <div>
+        <section>
             <h2>Echoed Text</h2>
             <p id="echo-txt"><em>Type text to echo!</em></p>
-        </div>
-        <div>
+        </section>
+        <section>
             <div id="demo-form">
                 <label for="usertxt">Text to Echo</label>
-                <input id="usertxt" class="page-input" name="usertxt" maxlength="40" placeholder="Enter text here." required/>
+                <textarea id="usertxt" class="page-input" name="usertxt" rows="5" cols="50" maxlength="250" placeholder="Enter text here." required></textarea>
                 <input type="button" id="send-btn" class="page-btn" value="Submit">
             </div>
-        </div>
+        </section>
     </main>
     <script src="index.js"></script>
 </body>

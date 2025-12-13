@@ -2,7 +2,14 @@
     const replyDisplay = doc.querySelector('p#echo-txt')
     const userText = doc.querySelector('#usertxt');
     const submitButton = doc.querySelector('#send-btn');
-    submitButton.addEventListener('click', async () => {
+
+    submitButton.addEventListener('click', async (event) => {
+        if (!userText.value) {
+            event.stopPropagation();
+            event.preventDefault();
+            return;
+        }
+
         let response = await fetch('/', {
             method: 'POST',
             headers: {'Content-Type': 'text/plain'},
