@@ -12,25 +12,6 @@
 #include "myapp/msg_task.hpp"
 
 
-enum class ExitCode {
-    ok = 0,
-    failure = 1,
-};
-
-class MainReturn {
-private:
-    [[maybe_unused]]
-    ExitCode code;
-
-public:
-    constexpr MainReturn(ExitCode e) noexcept
-    : code {e} {}
-
-    operator int(this auto&& self) noexcept {
-        return static_cast<int>(self.code);
-    }
-};
-
 std::atomic_flag is_running = ATOMIC_FLAG_INIT;
 
 void handle_sigint([[maybe_unused]] int sig_id) {
@@ -171,9 +152,5 @@ int main(int argc, char* argv[]) {
 
     const auto serviced_ok = run_server(port_arg, backlog_value, my_routes);
 
-    return MainReturn {
-        (serviced_ok)
-        ? ExitCode::ok
-        : ExitCode::failure
-    };
+    return serviced_ok ? 0 : 1;
 }
