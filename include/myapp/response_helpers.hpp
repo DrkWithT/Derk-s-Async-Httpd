@@ -23,7 +23,7 @@ namespace DerkHttpd::App {
     // Contains utils for helper functions which add to a response object. All errors are thrown with messages, and these messages are placed into 500 responses.
     namespace ResponseUtils {
         template <ResourceKind Resource>
-        void response_put_all(Http::Response& res, Resource& resource) {
+        void response_put_all(Http::Response& res, Resource& resource, Http::Status status) {
             Http::Blob response_resource = resource.as_full_blob();
             const auto response_size = response_resource.size();
 
@@ -34,7 +34,20 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
             res.headers.emplace("Date", get_date_string());
 
-            res.http_status = Http::Status::http_ok;
+            res.http_status = status;
+        }
+
+        template <ResourceKind Resource> requires (std::same_as<Resource, App::EmptyReply>)
+        void response_put_all(Http::Response& res, Resource& status_only_dud) {
+            Http::Blob response_resource = status_only_dud.as_full_blob();
+
+            res.body = std::move(response_resource);
+
+            res.headers.emplace("Content-Length", "0");
+            res.headers.emplace("Content-Type", "*/*");
+            res.headers.emplace("Date", get_date_string());
+
+            res.http_status = status_only_dud.get_status();
         }
 
         template <ResourceKind Resource>

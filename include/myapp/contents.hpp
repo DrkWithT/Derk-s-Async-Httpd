@@ -92,6 +92,10 @@ namespace DerkHttpd::App {
         [[nodiscard]] constexpr auto as_full_blob() noexcept -> Http::Blob {
             return {};
         }
+
+        [[nodiscard]] constexpr auto get_status() const noexcept -> Http::Status {
+            return m_status;
+        }
     };
 }
 
