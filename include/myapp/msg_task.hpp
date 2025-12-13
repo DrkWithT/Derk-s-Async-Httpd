@@ -56,7 +56,7 @@ namespace DerkHttpd::App {
                 return {fd_idx, false};
             }
 
-            return {fd_idx, true};
+            return {fd_idx, res.headers.at("Connection") != "close"};
         }
     };
 }
