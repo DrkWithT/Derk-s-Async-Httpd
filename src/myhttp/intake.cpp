@@ -2,8 +2,8 @@
 #include <algorithm>
 #include <string>
 
-// #include <iostream>
-// #include <print>
+#include <iostream>
+#include <print>
 
 #include "myhttp/intake.hpp"
 
@@ -300,6 +300,7 @@ namespace DerkHttpd::Http {
     auto HttpIntake::handle_state_chunk(int fd) -> State {
         // 1. As per HTTP/1.1, read the chunk prefix line before parsing the hexadecimal integer. The I/O must succeed prior.
         if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
+            std::println(std::cerr, "Intake ERR [HttpIntake::handle_state_chunk (1)]:\n\tFailed to read chunk prefix line.");
             return State::httpin_state_syntax_error;
         }
 
@@ -315,18 +316,33 @@ namespace DerkHttpd::Http {
 
         // 2. If the prefix length is valid and positive, read another body chunk.
         if (chunk_length > 0) {
-            if (auto chunk_io_res = Net::socket_read_n(fd, chunk_length, m_buffer); !chunk_io_res) {
-                return State::httpin_state_syntax_error;
-            } else {
-                m_temp.body.append_range(std::string {m_buffer.data()});
+            ssize_t pending_chunk_n = chunk_length;
+
+            while (pending_chunk_n > 0) {
+                if (auto chunk_temp_io_res = Net::socket_read_n(fd, pending_chunk_n, m_buffer); !chunk_temp_io_res) {
+                    std::println(std::cerr, "Intake ERR [HttpIntake::handle_state_chunk (2)]:\n\tFailed to read chunk blob.");
+
+                    return State::httpin_state_syntax_error;
+                } else if (const auto chunk_io_read_n = chunk_temp_io_res.value(); chunk_io_read_n > 0) {
+                    m_temp.body.append_range(std::string_view {m_buffer.begin(), m_buffer.begin() + chunk_io_read_n});
+
+                    pending_chunk_n -= chunk_io_read_n;
+                } else {
+                    std::println(std::cerr, "Intake ERR [HttpIntake::handle_state_chunk (3)]:\n\tFailed to read chunk blob fragment.");
+
+                    return State::httpin_state_syntax_error;
+                }
             }
         } else if (chunk_length < 0) {
             // 2.1: Check for invalid chunk lengths... This would be unusable, thus requiring a connection termination.
+            std::println(std::cerr, "Intake ERR [HttpIntake::handle_state_chunk (3)]:\n\tInvalid chunk prefix length.");
+
             return State::httpin_state_syntax_error;
         }
 
         // 2.2: Consume & skip trailing CRLF after the chunk(s).
         if (auto last_crlf_io_res = Net::socket_read_line(fd, m_buffer); !last_crlf_io_res.has_value()) {
+            std::println(std::cerr, "Intake ERR [HttpIntake::handle_state_chunk (4)]:\n\tFailed to read chunk-end line.");
             return State::httpin_state_syntax_error;
         }
 

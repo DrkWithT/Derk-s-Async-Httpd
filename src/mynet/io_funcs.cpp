@@ -4,16 +4,11 @@
 #include "mynet/io_funcs.hpp"
 
 namespace DerkHttpd::Net {
-
     auto socket_read_n(int fd, ssize_t n, ByteBuffer<>& dest) -> IOResult<ssize_t> {
-        if (std::size_t arg_n = n; arg_n >= dest.size()) {
-            return std::unexpected {"Invalid read count passed to io_funcs.cpp::socket_read_n(): too large for buffer."};
-        }
-
         std::ranges::fill(dest, '\0');
 
         auto dest_data_p = dest.data();
-        auto pending_rc = n;
+        ssize_t pending_rc = std::min(n, ssize_t {512});
         ssize_t done_rc = 0;
 
         while (pending_rc > 0 && done_rc < n) {
