@@ -144,8 +144,26 @@ int main(int argc, char* argv[]) {
         }
 
         auto internal_err = App::EmptyReply {Http::Status::http_server_error};
-
         App::ResponseUtils::response_put_all(res, internal_err);
+
+        return res;
+    });
+
+    my_routes.set_handler("/lorem", [](Http::Request req, [[maybe_unused]] const std::map<std::string, Uri::QueryValue>& query_params) {
+        Http::Response res;
+
+        if (req.http_verb == Http::Verb::http_get) {
+            if (auto lorem_copypasta = App::TextualFile::create("./www/lorem.txt", "text/plain", 512); lorem_copypasta) {
+                App::ResponseUtils::response_put_chunked(res, lorem_copypasta.value());
+                return res;
+            }
+        } else {
+            App::EmptyReply bad_verb_err {Http::Status::http_method_not_allowed};
+            App::ResponseUtils::response_put_all(res, bad_verb_err);
+        }
+
+        App::EmptyReply server_err {Http::Status::http_server_error};
+        App::ResponseUtils::response_put_all(res, server_err);
 
         return res;
     });

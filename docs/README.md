@@ -15,7 +15,5 @@ My redux of a toy C++ HTTP/1.x server, but it focuses on event-driven handling: 
 ## Roadmap
  - Test GET query param handling.
  - Handle "absolute host" URIs.
- - Finish chunked encoding parsing & sending.
-   - After all chunks are sent, put `'0' CRLF`.
  - Add `HEAD` request to reply support.
  - Improve logging: can be disabled and colorized.
