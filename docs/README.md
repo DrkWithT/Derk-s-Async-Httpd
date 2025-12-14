@@ -15,5 +15,4 @@ My redux of a toy C++ HTTP/1.x server, but it focuses on event-driven handling: 
 ## Roadmap
  - Test GET query param handling.
  - Handle "absolute host" URIs.
- - Add `HEAD` request to reply support.
- - Improve logging: can be disabled and colorized.
+ - Add colored logging.

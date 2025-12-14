@@ -3,7 +3,6 @@
 
 #include "mynet/io_funcs.hpp"
 #include "myhttp/msgs.hpp"
-#include "myapp/contents.hpp"
 
 namespace DerkHttpd::Http {
     class HttpOuttake {
@@ -16,7 +15,6 @@ namespace DerkHttpd::Http {
             srz_err,
         };
 
-        static constexpr std::size_t normal_flush_bound = 256;
         Net::ByteBuffer<> m_reply_bytes;
         std::size_t m_load_count;
 

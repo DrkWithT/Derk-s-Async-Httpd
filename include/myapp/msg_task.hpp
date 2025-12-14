@@ -39,9 +39,24 @@ namespace DerkHttpd::App {
             }
 
             Http::Request req = std::exchange(req_result.value(), {});
-            Http::Response res = routes.dispatch_handler(req);
+            const auto req_is_head = req.http_verb == Http::Verb::http_head;
 
-            // 2. Decorate response with transfer-specific headers e.g Server, Connection, etc.
+            // 2. If applicable, handle HEAD requests as per HTTP/1.1, resembling GET requests without the body.
+            if (req_is_head) {
+                req.http_verb = Http::Verb::http_get;
+            }
+
+            Http::Response res = routes.dispatch_handler(req);
+            
+            if (req_is_head) {
+                if (auto discardable_chunked_p = std::get_if<App::ChunkIterPtr>(&res.body); discardable_chunked_p) {
+                    discardable_chunked_p->get()->clear();
+                } else {
+                    res.body = {};
+                }
+            }
+
+            // 3. Decorate response with transfer-specific headers e.g Server, Connection, etc.
             res.headers.emplace("Server", "derkhttpd/0.1.0");
 
             if (req.headers.contains("Connection") && req.http_schema == Http::Schema::http_1_1 && res.http_status != Http::Status::http_server_error) {

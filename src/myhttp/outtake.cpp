@@ -187,14 +187,14 @@ namespace DerkHttpd::Http {
             return false;
         }
 
-        if (auto body_io_res = (res.body.type() == typeid(Blob))
-            ? write_body(fd, std::any_cast<Blob>(res.body))
-            : write_body(fd, std::any_cast<App::ChunkIterPtr>(res.body));
-            !body_io_res
-        ) {
-            return false;
+        Net::IOResult<ssize_t> body_send_res;
+
+        if (auto blob_p = std::get_if<Http::Blob>(&res.body); blob_p) {
+            body_send_res = write_body(fd, *blob_p);
+        } else {
+            body_send_res = write_body(fd, std::get<App::ChunkIterPtr>(res.body));
         }
 
-        return true;
+        return body_send_res.has_value() && body_send_res.value() > 0;
     }
 }
