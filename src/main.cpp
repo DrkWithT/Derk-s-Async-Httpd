@@ -92,7 +92,7 @@ int main(int argc, char* argv[]) {
     })(argv);
 
     if (!checked_backlog) {
-        std::println("Setup ERR: invalid backlog count!");
+        std::println(std::cerr, "Setup ERR: invalid backlog count!");
         return 1;
     }
 
@@ -115,14 +115,12 @@ int main(int argc, char* argv[]) {
             return res;
         } else {
             auto invalid_method_err = App::EmptyReply{Http::Status::http_method_not_allowed};
-
             App::ResponseUtils::response_put_all(res, invalid_method_err);
 
             return res;
         }
 
         auto internal_err = App::EmptyReply {Http::Status::http_server_error};
-
         App::ResponseUtils::response_put_all(res, internal_err);
 
         return res;
@@ -139,7 +137,6 @@ int main(int argc, char* argv[]) {
             }
         } else {
             auto invalid_method_err = App::EmptyReply {Http::Status::http_method_not_allowed};
-
             App::ResponseUtils::response_put_all(res, invalid_method_err);
         }
 

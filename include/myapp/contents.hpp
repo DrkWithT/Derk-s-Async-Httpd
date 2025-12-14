@@ -10,17 +10,6 @@
 #include "myhttp/msgs.hpp"
 
 namespace DerkHttpd::App {
-    // TODO: make generic to handle both binary and human-readable content.
-    class ChunkIterBase {
-    public:
-        virtual ~ChunkIterBase() = default;
-
-        virtual auto next() -> std::optional<Http::Blob> = 0;
-    };
-
-    /// NOTE: see `ChunkIterBase` for TODOs.
-    using ChunkIterPtr = std::shared_ptr<ChunkIterBase>;
-
     class TextIterator : public ChunkIterBase {
     private:
         std::ifstream m_ifstream_p;
