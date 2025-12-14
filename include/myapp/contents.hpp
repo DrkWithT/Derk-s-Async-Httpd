@@ -3,7 +3,6 @@
 
 #include <string_view>
 #include <optional>
-#include <memory>
 #include <filesystem>
 #include <fstream>
 
@@ -19,6 +18,9 @@ namespace DerkHttpd::App {
         TextIterator(std::ifstream fs_p, std::size_t chunk_len) noexcept;
 
         [[nodiscard]] auto next() -> std::optional<Http::Blob> override;
+
+        /// NOTE: This should only be used for clearing a chunked payload before responding to a `HEAD` request.
+        void clear() override;
     };
 
     // Implements the `ResourceKind` requirements for a human-readable file's content.

@@ -9,7 +9,7 @@ namespace DerkHttpd::App {
     : m_ifstream_p {std::move(fs_p)}, m_chunk_len {chunk_len} {}
 
     [[nodiscard]] auto TextIterator::next() -> std::optional<Http::Blob> {
-        if (m_ifstream_p.eof()) {
+        if (m_ifstream_p.eof() || m_chunk_len == 0) {
             return Http::Blob {};
         }
 
@@ -26,9 +26,16 @@ namespace DerkHttpd::App {
         return temp;
     }
 
+    void TextIterator::clear() {
+        m_ifstream_p = {};
+        m_chunk_len = 0;
+    }
+
 
     TextualFile::TextualFile(std::filesystem::path path, std::string_view mime, std::size_t chunk_n)
     : m_data {path}, m_mime {mime}, m_chunk_len {chunk_n} {}
+    
+    [[nodiscard]] static auto dud() noexcept -> std::optional<TextualFile>;
 
     auto TextualFile::create(std::filesystem::path relative_path, std::string_view mime_identifier, std::size_t chunk_n) noexcept -> std::optional<TextualFile> {
         if (!relative_path.is_relative() && !relative_path.has_filename()) {

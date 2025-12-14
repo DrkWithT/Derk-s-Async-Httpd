@@ -21,6 +21,8 @@ namespace DerkHttpd::App {
         virtual ~ChunkIterBase() = default;
 
         virtual auto next() -> std::optional<Http::Blob> = 0;
+
+        virtual void clear() = 0;
     };
 
     /// NOTE: see `ChunkIterBase` for TODOs.
