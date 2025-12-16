@@ -177,7 +177,7 @@ namespace DerkHttpd::Http {
     : m_reply_bytes {}, m_load_count {0} {}
 
     auto HttpOuttake::operator()(int fd, const Response& res) -> bool {
-        const auto& [res_body, res_headers, res_status, res_schema] = res;
+        const auto& [res_body, res_headers, res_time, res_status, res_schema] = res;
 
         if (auto start_line_io_res = write_status_line(fd, res_schema, res_status); !start_line_io_res) {
             return false;
