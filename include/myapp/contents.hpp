@@ -27,6 +27,7 @@ namespace DerkHttpd::App {
     class TextualFile {
     private:
         std::ifstream m_data;
+        std::filesystem::path m_path;
         std::string_view m_mime;
         std::size_t m_chunk_len;
 
@@ -42,6 +43,8 @@ namespace DerkHttpd::App {
         [[nodiscard]] auto as_chunk_iter() noexcept -> ChunkIterPtr;
 
         [[nodiscard]] auto as_full_blob() noexcept -> Http::Blob;
+
+        [[nodiscard]] auto get_modify_time() -> std::filesystem::file_time_type;
     };
 
     class StringReply {

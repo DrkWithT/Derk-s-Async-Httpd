@@ -33,7 +33,7 @@ namespace DerkHttpd::App {
 
 
     TextualFile::TextualFile(std::filesystem::path path, std::string_view mime, std::size_t chunk_n)
-    : m_data {path}, m_mime {mime}, m_chunk_len {chunk_n} {}
+    : m_data {path}, m_path {path}, m_mime {mime}, m_chunk_len {chunk_n} {}
     
     [[nodiscard]] static auto dud() noexcept -> std::optional<TextualFile>;
 
@@ -62,6 +62,11 @@ namespace DerkHttpd::App {
         blob.append_range(sout.str());
 
         return blob;
+    }
+
+    /// NOTE: Gets a file's modification time as seconds since the Epoch start.
+    auto TextualFile::get_modify_time() -> std::filesystem::file_time_type {
+        return std::filesystem::last_write_time(m_path);
     }
 
 

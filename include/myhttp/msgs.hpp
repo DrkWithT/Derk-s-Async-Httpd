@@ -7,6 +7,8 @@
 #include <vector>
 #include <map>
 #include <variant>
+#include <chrono>
+#include <filesystem>
 
 #include "myhttp/enums.hpp"
 
@@ -42,6 +44,7 @@ namespace DerkHttpd::Http {
         // For avoiding circular dependency: stores any specific `App::ResourceKind`.
         std::variant<Blob, App::ChunkIterPtr> body;
         std::map<std::string, std::string> headers;
+        std::variant<std::chrono::seconds, std::filesystem::file_time_type> modify_timestamp; // seconds since Epoch of modify time / file modification `std::chrono::time_point`
         Status http_status;
         Schema http_schema;
     };
