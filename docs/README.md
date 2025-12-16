@@ -13,6 +13,7 @@ My redux of a toy C++ HTTP/1.x server, but it focuses on event-driven handling: 
 <img src="imgs/Derk_Httpd_New_Page.png" alt="test page with text echoing" height="50%" width="50%">
 
 ## Roadmap
+ - Add support for `If-Unmodified-Since` header & properly handling it.
+ - Handle "absolute host" URIs... Maybe match the `host:port` segment against the `Host` and server-set address info.
  - Test GET query param handling.
- - Handle "absolute host" URIs.
  - Add colored logging.
