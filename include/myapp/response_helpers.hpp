@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <concepts>
+#include <chrono>
 #include <string>
 
 #include "myhttp/msgs.hpp"
@@ -20,6 +21,11 @@ namespace DerkHttpd::App {
     // Generates a GMT string for HTTP/1.1 responses: `%a, %e %b %Y %T UTC`, referencing: http://stackoverflow.com/questions/63501664/ddg#63502919
     [[nodiscard]] auto get_date_string() -> std::string;
 
+    /// NOTE: LLVM 21 for macOS lacks `std::chrono::parse()`, so I'll do this the old-fashioned way: `std::istringstream` and `std::get_time`.
+    [[nodiscard]] auto parse_date_string(const std::string& date) -> std::chrono::seconds;
+
+    [[nodiscard]] auto get_epoch_seconds_now() -> std::chrono::seconds;
+
     // Contains utils for helper functions which add to a response object. All errors are thrown with messages, and these messages are placed into 500 responses.
     namespace ResponseUtils {
         template <ResourceKind Resource>
@@ -28,11 +34,17 @@ namespace DerkHttpd::App {
             const auto response_size = response_resource.size();
 
             res.body = std::move(response_resource);
-
+            
             res.headers.emplace("Content-Length", std::to_string(response_size));
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
             res.headers.emplace("Date", get_date_string());
+
+            if constexpr (std::is_same_v<Resource, App::TextualFile>) {
+                res.modify_timestamp = resource.get_modify_time();
+            } else {
+                res.modify_timestamp = get_epoch_seconds_now();
+            }
 
             res.http_status = status;
         }
@@ -47,6 +59,8 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Type", "*/*");
             res.headers.emplace("Date", get_date_string());
 
+            res.modify_timestamp = get_epoch_seconds_now();
+
             res.http_status = status_only_dud.get_status();
         }
 
@@ -58,6 +72,12 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
             res.headers.emplace("Date", get_date_string());
             res.headers.emplace("Transfer-Encoding", "chunked");
+
+            if constexpr (std::is_same_v<Resource, App::TextualFile>) {
+                res.modify_timestamp = resource.get_modify_time();
+            } else {
+                res.modify_timestamp = get_epoch_seconds_now();
+            }
 
             if (file_txt_it) {
                 res.body = file_txt_it;
