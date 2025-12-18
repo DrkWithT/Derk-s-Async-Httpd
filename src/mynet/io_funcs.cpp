@@ -39,7 +39,7 @@ namespace DerkHttpd::Net {
 
         while (done_rc < max_rc) {
             if (const ssize_t temp_rc = recv(fd, dest.data() + done_rc, 1, 0); temp_rc > 0) {
-                if (const char temp_c = dest_data_p[done_rc]; temp_rc == cr_v) {
+                if (const char temp_c = dest_data_p[done_rc]; temp_c == cr_v) {
                     continue;
                 } else if (temp_c == lf_v) {
                     dest_data_p[done_rc] = nul_v;
