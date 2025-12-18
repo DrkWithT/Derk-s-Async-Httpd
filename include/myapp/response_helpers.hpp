@@ -40,7 +40,7 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
             res.headers.emplace("Date", get_date_string());
 
-            if constexpr (std::is_same_v<Resource, App::TextualFile>) {
+            if constexpr (std::is_same_v<std::remove_cvref_t<Resource>, App::TextualFile>) {
                 res.modify_timestamp = resource.get_modify_time();
             } else {
                 res.modify_timestamp = get_epoch_seconds_now();

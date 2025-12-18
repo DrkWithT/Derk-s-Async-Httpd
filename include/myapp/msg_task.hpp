@@ -67,7 +67,10 @@ namespace DerkHttpd::App {
             
             // 2c. Send the response's resource only if the response-resource's timestamp (in Epoch seconds) passes the request's `If-Modified-Since` value. Note that `Last-Modified` must exist and have the resource's modification date on a 304.
             if (req_resource_must_time_check && std::holds_alternative<std::filesystem::file_time_type>(res.modify_timestamp)) {
-                if (const auto& res_resource_timestamp = std::get<std::filesystem::file_time_type>(res.modify_timestamp); res_resource_timestamp.time_since_epoch() > resource_cache_epoch_s) {
+                std::println("LOG: request-checked-modify-time? {}, resource-has-file-time? {}", req_resource_must_time_check, res.modify_timestamp.index() == 1); // DEBUG
+                std::println("LOG: response-resource-modify-time-s: {}, request-if-modified-since-s: {}", std::chrono::duration_cast<std::chrono::seconds>(std::get<std::filesystem::file_time_type>(res.modify_timestamp).time_since_epoch()), resource_cache_epoch_s); // DEBUG
+
+                if (const auto& res_resource_timestamp = std::get<std::filesystem::file_time_type>(res.modify_timestamp); res_resource_timestamp.time_since_epoch() <= resource_cache_epoch_s) {
                     res.body = {};
                     res.headers.emplace(
                         "Last-Modified",
@@ -76,7 +79,11 @@ namespace DerkHttpd::App {
                             std::chrono::time_point_cast<std::chrono::seconds>(res_resource_timestamp)
                         )
                     );
-                    res.headers.emplace("Content-Length", "0");
+
+                    if (!res.headers.contains("Transfer-Encoding")) {
+                        res.headers.emplace("Content-Length", "0");
+                    }
+
                     res.http_status = Http::Status::http_not_modified;
                 }
             }
