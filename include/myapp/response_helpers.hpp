@@ -38,7 +38,6 @@ namespace DerkHttpd::App {
             res.headers.emplace("Content-Length", std::to_string(response_size));
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
-            res.headers.emplace("Date", get_date_string());
 
             if constexpr (std::is_same_v<std::remove_cvref_t<Resource>, App::TextualFile>) {
                 res.modify_timestamp = resource.get_modify_time();
@@ -57,7 +56,6 @@ namespace DerkHttpd::App {
 
             res.headers.emplace("Content-Length", "0");
             res.headers.emplace("Content-Type", "*/*");
-            res.headers.emplace("Date", get_date_string());
 
             res.modify_timestamp = get_epoch_seconds_now();
 
@@ -70,7 +68,6 @@ namespace DerkHttpd::App {
 
             // @see `App::ResourceKind -> get_mime_desc requirement!`
             res.headers.emplace("Content-Type", resource.get_mime_desc().data());
-            res.headers.emplace("Date", get_date_string());
             res.headers.emplace("Transfer-Encoding", "chunked");
 
             if constexpr (std::is_same_v<Resource, App::TextualFile>) {

@@ -67,11 +67,11 @@ namespace DerkHttpd::App {
             
             // 2c. Send the response's resource only if the response-resource's timestamp (in Epoch seconds) passes the request's `If-Modified-Since` value. Note that `Last-Modified` must exist and have the resource's modification date on a 304.
             if (req_resource_must_time_check && std::holds_alternative<std::filesystem::file_time_type>(res.modify_timestamp)) {
-                std::println("LOG: request-checked-modify-time? {}, resource-has-file-time? {}", req_resource_must_time_check, res.modify_timestamp.index() == 1); // DEBUG
-                std::println("LOG: response-resource-modify-time-s: {}, request-if-modified-since-s: {}", std::chrono::duration_cast<std::chrono::seconds>(std::get<std::filesystem::file_time_type>(res.modify_timestamp).time_since_epoch()), resource_cache_epoch_s); // DEBUG
-
                 if (const auto& res_resource_timestamp = std::get<std::filesystem::file_time_type>(res.modify_timestamp); res_resource_timestamp.time_since_epoch() <= resource_cache_epoch_s) {
                     res.body = {};
+
+                    // NOTE: 304s should not send any payload, so there's no need for resource-payload headers. Only `Last-Modified` should be most important for the client's possible caching.
+                    res.headers.clear();
                     res.headers.emplace(
                         "Last-Modified",
                         std::format(
@@ -80,15 +80,11 @@ namespace DerkHttpd::App {
                         )
                     );
 
-                    if (!res.headers.contains("Transfer-Encoding")) {
-                        res.headers.emplace("Content-Length", "0");
-                    }
-
                     res.http_status = Http::Status::http_not_modified;
                 }
             }
 
-            // 3. Decorate response with transfer-specific headers e.g Server, Connection, etc.
+            // 3. Decorate response with other important headers e.g Server, Connection, and Date.
             res.headers.emplace("Server", "derkhttpd/0.1.0");
 
             if (req.headers.contains("Connection") && req.http_schema == Http::Schema::http_1_1 && res.http_status != Http::Status::http_server_error) {
@@ -96,6 +92,8 @@ namespace DerkHttpd::App {
             } else {
                 res.headers.emplace("Connection", "close");
             }
+
+            res.headers.emplace("Date", get_date_string());
 
             res.http_schema = req.http_schema;
 
