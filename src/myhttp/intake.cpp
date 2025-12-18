@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <string>
 
+#include <sstream>
 #include <iostream>
 #include <print>
 
@@ -10,217 +11,62 @@
 namespace DerkHttpd::Http {
     using std::literals::operator""s;
 
-
     constexpr auto http_chunk_prefix_base = 16;
     constexpr auto http_chunk_prefix_dud = -1;
 
-    auto HttpLexer::at_eos() const noexcept -> bool {
-        return m_pos >= m_end;
-    }
-
-    auto HttpLexer::lex_single(TokenTag tag) -> HttpToken {
-        const auto tk_start = m_pos;
-
-        ++m_pos;
-
-        return {
-            .start = tk_start,
-            .length = 1,
-            .tag = tag,
-        };
-    }
-
-    auto HttpLexer::lex_spaces() noexcept -> HttpToken {
-        const auto tk_start = m_pos;
-        auto tk_len = 0;
-
-        while (!at_eos()) {
-            if (const auto c = m_src[m_pos]; match_spaces(c)) {
-                ++m_pos;
-                ++tk_len;
-            } else {
-                break;
-            }
-        }
-
-        return {
-            .start = tk_start,
-            .length = tk_len,
-            .tag = TokenTag::spaces,
-        };
-    }
-
-    auto HttpLexer::lex_word() -> HttpToken {
-        const auto tk_start = m_pos;
-        auto tk_len = 0;
-
-        while (!at_eos()) {
-            if (const auto c = m_src[m_pos]; match_wordy(c)) {
-                ++m_pos;
-                ++tk_len;
-            } else {
-                break;
-            }
-        }
-
-        const auto deduced_tag = ([this](int token_start, int token_length) -> TokenTag {
-            if (m_verbs.contains(std::format("{}", m_src.substr(token_start, token_length)))) {
-                return TokenTag::verb;
-            } else if (m_schemas.contains(m_src.substr(token_start, token_length))) {
-                return TokenTag::schema;
-            }
-
-            return TokenTag::identifier;
-        })(tk_start, tk_len);
-
-        return {
-            .start = tk_start,
-            .length = tk_len,
-            .tag = deduced_tag,
-        };
-    }
-
-    HttpLexer::HttpLexer(std::string_view sv) noexcept
-    : m_verbs {}, m_schemas {}, m_src {sv}, m_pos {0}, m_end (sv.length()) {
-        m_verbs.emplace("GET");
-        m_verbs.emplace("HEAD");
-        m_verbs.emplace("POST");
-        m_verbs.emplace("PUT");
-        m_verbs.emplace("DELETE");
-
-        m_schemas.emplace("HTTP/1.0");
-        m_schemas.emplace("HTTP/1.1");
-    }
-
-    void HttpLexer::use_source(std::string_view next_sv) noexcept {
-        m_src = next_sv;
-        m_pos = 0;
-        m_end = next_sv.length();
-    }
-
-    /// TODO: add URI query parameter lexing... then parse them by this syntax:
-    /// `<identifier> '=' <literal> ('&' <identifier> '=' <literal>)*`
-    auto HttpLexer::operator()() -> HttpToken {
-        if (at_eos()) {
-            return {
-                .start = m_end,
-                .length = 1,
-                .tag = TokenTag::eos,
-            };
-        }
-
-        const auto c = m_src[m_pos];
-
-        switch (c) {
-            case ':': return lex_single(TokenTag::colon);
-            // case ',': return lex_single(TokenTag::comma);
-            // case '?': return lex_single(TokenTag::query);
-            // case '&': return lex_single(TokenTag::ampersand);
-            // case '=': return lex_single(TokenTag::assign);
-            default: break;
-        }
-
-        if (match_spaces(c)) {
-            return lex_spaces();
-        } else if (match_wordy(c)) {
-            return lex_word();
-        }
-
-        return lex_single(TokenTag::unknown);
-    }
-
-    auto HttpIntake::parse_advance() -> HttpToken {
-        HttpToken temp;
-
-        do {
-            temp = m_lexer();
-
-            if (temp.tag == TokenTag::spaces) {
-                continue;
-            }
-
-            break;
-        } while (temp.tag != TokenTag::eos);
-
-        return temp;
-    }
-
-    auto HttpIntake::match_token_of(TokenTag tag) const noexcept -> bool {
-        return m_current.tag == tag;
-    }
-
-    auto HttpIntake::stringify_token(std::string_view sv, const HttpToken& token) -> std::string {
-        return std::format("{}", sv.substr(token.start, token.length));
-    }
-
-    void HttpIntake::parse_consume() {
-        m_current = parse_advance();
-    }
-
     auto HttpIntake::parse_request_line(std::string_view sv) -> std::expected<RawReqLine, std::string> {
-        m_lexer.use_source(sv);
-        parse_consume();
+        std::istringstream tokenizer {std::format("{}", sv)};
+        std::string verb_lexeme;
+        std::string path_lexeme;
+        std::string schema_lexeme;
 
-        try {
-            HttpToken verb_token = m_current;
-            parse_consume_of(TokenTag::verb);
+        tokenizer >> verb_lexeme;
+        tokenizer >> path_lexeme;
+        tokenizer >> schema_lexeme;
 
-            HttpToken path_token = m_current;
-            parse_consume_of(TokenTag::identifier);
-
-            HttpToken schema_token = m_current;
-            parse_consume_of(TokenTag::schema);
-
-            std::string verb {stringify_token(sv, verb_token)};
-            std::string path {stringify_token(sv, path_token)};
-            std::string schema {stringify_token(sv, schema_token)};
-
-            return RawReqLine {
-                .rel_uri = path,
-                .verb = m_verbs.contains(verb) ? m_verbs.at(verb) : Verb::http_get,
-                .schema = m_schemas.contains(schema) ? m_schemas.at(schema) : Schema::http_1_1,
-            };
-        } catch (const std::runtime_error& err) {
-            return std::unexpected {err.what()};
-        }
+        return RawReqLine {
+            .rel_uri = std::move(path_lexeme),
+            .verb = m_verbs.contains(verb_lexeme) ? m_verbs.at(verb_lexeme) : Verb::http_get,
+            .schema = m_schemas.contains(schema_lexeme) ? m_schemas.at(schema_lexeme) : Schema::http_1_1,
+        };
     }
 
+    // TODO: skip leading & trailing spaces around header key and value.
     auto HttpIntake::parse_request_header(std::string_view sv) -> std::expected<RawHeader, std::string> {
-        m_lexer.use_source(sv);
-        parse_consume();
-
-        if (m_current.tag == TokenTag::eos) {
+        if (sv.empty()) {
             return RawHeader {
                 .key = {},
                 .value = {},
             };
         }
 
-        try {
-            HttpToken header_key_token = m_current;
-            parse_consume_of(TokenTag::identifier);
+        std::istringstream tokenizer {std::format("{}", sv)};
+        std::string header_key_lexeme;
+        std::string header_value_lexeme;
 
-            parse_consume_of(TokenTag::colon);
+        std::getline(tokenizer, header_key_lexeme, ':');
 
-            HttpToken header_value_token = m_current;
-            parse_consume_of(TokenTag::identifier);
+        // Skip extra spaces between ':' and <value> for correct strings.
+        tokenizer.ignore(1, ' ');
 
-            return RawHeader {
-                .key = stringify_token(sv, header_key_token),
-                .value = stringify_token(sv, header_value_token),
-            };
-        } catch (const std::runtime_error& err) {
-            return std::unexpected {err.what()};
-        }
+        std::getline(tokenizer, header_value_lexeme);
+
+        return RawHeader {
+            .key = std::move(header_key_lexeme),
+            .value = std::move(header_value_lexeme),
+        };
     }
 
     auto HttpIntake::handle_state_request_line(int fd) -> State {
-        if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
+        auto io_result = Net::socket_read_line(fd, m_buffer);
+
+        if (!io_result.has_value()) {
             return State::httpin_state_syntax_error;
         }
 
-        if (auto request_line = parse_request_line({m_buffer.data()}); !request_line.has_value()) {
-            // std::println(std::cerr, "Intake ERR[Request-Line-State (2)]: Request Error:\n{}", request_line.error());
+        std::string_view temp_line {m_buffer.data(), static_cast<std::size_t>(io_result.value())};
+
+        if (auto request_line = parse_request_line(temp_line); !request_line.has_value()) {
             return State::httpin_state_syntax_error;
         } else {
             auto& [req_path, req_verb, req_schema] = request_line.value();
@@ -234,18 +80,19 @@ namespace DerkHttpd::Http {
     }
 
     auto HttpIntake::handle_state_header(int fd) -> State {
-        if (auto io_result = Net::socket_read_line(fd, m_buffer); !io_result.has_value()) {
+        auto io_result = Net::socket_read_line(fd, m_buffer);
+
+        if (!io_result.has_value()) {
             return State::httpin_state_syntax_error;
         }
 
-        std::string_view temp_line {m_buffer.data()};
+        std::string_view temp_line {m_buffer.data(), static_cast<std::size_t>(io_result.value())};
 
         if (temp_line.length() >= static_cast<std::size_t>(m_max_header_size)) {
             return State::httpin_state_constraint_error;
         }
 
         if (auto request_line = parse_request_header(temp_line); !request_line.has_value()) {
-            // std::println(std::cerr, "Intake ERR [Header-State (2.1)]: Request Error:\n{}", request_line.error());
             return State::httpin_state_syntax_error;
         } else if (auto& [key , value] = request_line.value(); !key.empty() && !value.empty()) {
             m_temp.headers[key] = std::move(value);
@@ -278,7 +125,6 @@ namespace DerkHttpd::Http {
 
         while (pending_body_n > 0) {
             if (auto recv_result = Net::socket_read_n(fd, pending_body_n, m_buffer); !recv_result.has_value()) {
-                // std::println(std::cerr, "Intake ERR [Simple-body-State (1)]:\n{}", recv_result.error());
                 return State::httpin_state_syntax_error;
             } else if (const auto read_n = recv_result.value(); read_n > 0) {
                 for (std::string_view fragment_view = m_buffer.data(); const auto ch : fragment_view) {
@@ -350,7 +196,7 @@ namespace DerkHttpd::Http {
     }
 
     HttpIntake::HttpIntake(IntakeConfig config) noexcept
-    : m_buffer {}, m_lexer {""}, m_verbs {}, m_schemas {}, m_temp {}, m_current {HttpToken { .tag = TokenTag::unknown }}, m_state {State::httpin_state_request_line}, m_max_header_size {480}, m_max_body_size {config.max_body_size} {
+    : m_buffer {}, m_verbs {}, m_schemas {}, m_temp {}, m_state {State::httpin_state_request_line}, m_max_header_size {480}, m_max_body_size {config.max_body_size} {
         std::ranges::fill(m_buffer, 0);
 
         m_verbs.emplace("GET"s, Verb::http_get);
@@ -358,6 +204,9 @@ namespace DerkHttpd::Http {
         m_verbs.emplace("POST"s, Verb::http_post);
         m_verbs.emplace("PUT"s, Verb::http_put);
         m_verbs.emplace("DELETE"s, Verb::http_delete);
+
+        m_schemas.emplace("HTTP/1.0"s, Schema::http_1_0);
+        m_schemas.emplace("HTTP/1.1"s, Schema::http_1_1);
     }
 
     auto HttpIntake::operator()(int fd) -> std::expected<Request, std::string> {
@@ -394,7 +243,6 @@ namespace DerkHttpd::Http {
                     break;
                 case State::httpin_state_done:
                 default:
-                    // std::println("Intake LOG:\nDONE");
                     request_done = true;
                     break;
             }
