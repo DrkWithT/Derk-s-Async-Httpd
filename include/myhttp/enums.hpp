@@ -24,6 +24,7 @@ namespace DerkHttpd::Http {
         http_method_not_allowed,
         http_not_acceptable,
         http_length_required,
+        http_precondition_failed,
         http_content_too_large,
         http_request_header_fields_too_large,
         http_server_error,
